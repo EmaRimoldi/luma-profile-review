@@ -50,6 +50,8 @@ def parser():
     p.add_argument("--version", action="version", version=__version__)
     p.add_argument("--config", type=Path, help="Optional TOML file; defaults to ./luma-review.toml when present")
     commands = p.add_subparsers(dest="command", required=True)
+    from .product_cli import add_commands
+    add_commands(commands)
     for name in ["criteria", "export-prompts", "evaluate", "report"]:
         command = commands.add_parser(name)
         command.add_argument("--criteria", type=Path, default=Path("criteria.md"))
@@ -92,6 +94,9 @@ def main(argv=None) -> int:
                 raise ReviewError("Unknown inference configuration key")
         else:
             config = {}
+        from .product_cli import PRODUCT_COMMANDS, run
+        if args.command in PRODUCT_COMMANDS:
+            return run(args, config)
         if args.command == "doctor":
             names = ["codex", "claude", "ollama", "host"] if args.backend == "all" else [args.backend]
             statuses = [doctor(n, args.base_url) for n in names]

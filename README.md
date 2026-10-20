@@ -1,175 +1,190 @@
 # Luma Profile Review
 
-Review event participants against criteria you write in Markdown. Get a
-shortlist with per-criterion evidence, missing information, and source links.
-MIT licensed. Python 3.11+. No runtime Python dependencies.
+**Make the room feel smaller.** Turn a crowded San Francisco event into a
+personal guide to whom you could meet, why the connection could be useful,
+and how to start the conversation.
 
-**The project is a CLI/library plus a bundled Codex skill.** Codex handles
-authenticated browsing; the application handles model adapters, validation,
-resumable evaluation, scoring, and reports. It runs locally and does not need
-a hosted service.
+An open-source, local application with a CLI, an MCP server, and a shared
+agent skill. MIT licensed. Python 3.11+. The core has no Python dependencies;
+the optional MCP integration uses the official Python SDK.
 
-## Why this structure?
+![A fictional personalized event guide](docs/images/guide.jpg)
 
-| Option | Strength | Limitation |
-| --- | --- | --- |
-| Skill alone | Fast integration with Codex browsing | Provider adapters, cache behavior and scoring are difficult to test and reuse |
-| Standalone application alone | Portable and testable | Needs its own browser authentication and orchestration integration |
-| Repository plus skill — chosen | Reusable engine with Codex as an orchestrator | Browser collection still requires a compatible Codex browser tool |
+## The experience
 
-The engine does not depend on Codex to evaluate imported datasets. The skill
-uses Codex's existing browser capabilities to collect the accessible guest
-list and professional profile excerpts. The evaluator does not crawl pages:
-it only receives collected sources. This makes source acquisition and model
-selection independent.
+1. **Write your brief.** Five short questions cover your work, interests,
+   goals, the people you hope to meet, and what you can offer. They produce
+   an editable professional profile and Markdown matching criteria. Only
+   requirements you explicitly specify become hard filters.
+2. **Bring an event.** Add its Luma URL. A connected browser-capable agent
+   collects the accessible guest list in resumable batches, deduplicating
+   people by their profile URLs.
+3. **Read relevant sources.** The agent follows Luma profiles and linked
+   LinkedIn, company, GitHub, and personal pages when useful. Read excerpts,
+   source URLs, access dates, and access limitations are recorded separately
+   from links that have merely been discovered.
+4. **Prepare your conversations.** Source-grounded professional facts feed
+   a personalized guide: reasons to meet, information to verify, useful
+   conversation starters, and source citations. Save people, record that
+   you've met, or mark a suggestion irrelevant.
+5. **Explore shared context.** A graph connects people to documented
+   interests, organizations, and projects. Shared company or topic never
+   automatically becomes a claim that two people know one another.
 
-## Quick start
+The current release is an alpha. Authenticated collection is orchestrated by
+your agent's browser tools; the Python CLI is not an unattended LinkedIn or
+Luma scraper. If your agent has no browser, import a collected profile snapshot.
 
-Run directly from a checkout:
-
-```sh
-python3 run.py doctor
-python3 run.py evaluate --criteria examples/criteria.md --profiles examples/profiles.json --backend codex --output data/demo-codex
-```
-
-Or install into a virtual environment:
+## Start locally
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -e .
-.venv/bin/luma-review --help
+.venv/bin/python -m pip install -e ".[mcp]"
+.venv/bin/luma-review serve --workspace data/my-workspace
 ```
 
-Change only the backend flag to use Claude:
+Open the printed loopback URL and answer the five questions. The app and
+agent integration share this workspace. Model requests use the selected
+backend; no remote application account or hosted database is needed.
+
+For a fictional walkthrough with no model requests:
 
 ```sh
-python3 run.py evaluate --criteria examples/criteria.md --profiles examples/profiles.json --backend claude --output data/demo-claude
+.venv/bin/luma-review serve --workspace data/demo-workspace --demo
 ```
 
-Use an already installed open-weight model through a running Ollama server:
+Use an empty workspace for the demo. Its profiles, sources, and assessments
+are explicitly labeled fictional curated fixtures. It does not demonstrate
+model quality or claim to contain actual event participants.
+
+To use the CLI without installation, replace `luma-review` with
+`python3 run.py`. MCP commands still need the optional MCP dependency in that
+same interpreter.
+
+## Connect your agent
+
+The primary integration targets are **Codex, Claude Code, Cursor, GitHub
+Copilot in VS Code, and OpenCode**. Claude Desktop configuration is also
+available. This is a compatibility and product-priority list, not a market-share
+ranking. A shared MCP server avoids building a separate product for every host.
+
+Generate copyable configuration for your agent:
 
 ```sh
-python3 run.py evaluate --criteria examples/criteria.md --profiles examples/profiles.json --backend ollama --model YOUR_INSTALLED_MODEL --output data/demo-local
+.venv/bin/luma-review integration --agent codex --workspace data/my-workspace
+.venv/bin/luma-review integration --agent claude --workspace data/my-workspace
+.venv/bin/luma-review integration --agent cursor --workspace data/my-workspace
 ```
 
-The Ollama adapter sends source excerpts to `http://127.0.0.1:11434` by default.
-`--base-url` can select another Ollama server. No model is downloaded or server
-started automatically. Model choice and local hardware affect quality and speed.
+Also supported: `copilot`, `opencode`, `claude-desktop`. Add the printed
+configuration in the indicated client location. Existing configuration is not
+modified automatically. Keep the virtual environment interpreter in the
+configuration so it can load the MCP dependency.
 
-To try the entire pipeline without making a model request, use the supplied
-synthetic responses. This tests the pipeline, not model quality:
+The shared skill is in [.agents/skills/luma-profile-review/SKILL.md](.agents/skills/luma-profile-review/SKILL.md),
+with a thin Claude Code entrypoint under `.claude/skills/`. The MCP server
+provides 11 tools for onboarding, event capture, research queues, structured
+inference, matching, guides, and feedback.
+
+An example task for your connected agent:
+
+> Use Luma Profile Review. Ask me the short onboarding questions if my brief
+> is missing. Collect the accessible profiles for this Luma event, enrich
+> them with relevant professional sources using your browser, and prepare
+> my personal guide using your current model. Show why each suggestion is
+> useful, its sources, and what could not be verified.
+
+For setup details, source collection, and current verification limits, see
+[agent integrations](docs/agents.md). The project does not bundle a browser
+driver or transfer your authenticated browser cookies to a model subprocess.
+
+## Model choice and subscriptions
+
+| Mode | How inference runs |
+| --- | --- |
+| Current agent | MCP `inference_tasks` and `submit_inference`; uses the model in your existing agent session |
+| `codex` | Official `codex exec` with saved CLI login, structured output, and a read-only sandbox |
+| `claude` | Official Claude Code CLI with saved login and structured output |
+| `ollama` | JSON-schema chat with an explicitly selected installed local model |
+
+The official CLIs manage their own authentication and normal account limits.
+The tool does not extract OAuth tokens or silently fall back to paid APIs.
+Existing environment credentials can affect which account a CLI uses. Run
+`luma-review doctor` to check availability. See [backend details](docs/backends.md).
+
+Source excerpts and your professional brief are sent to a selected cloud
+model. Ollama defaults to a local loopback endpoint. All workspace data,
+feedback, caches, and reports are local files, excluded from Git by default.
+
+## Matching is an experiment
+
+The initial guide uses source-grounded, per-criterion evaluation with
+editable required conditions and weighted preferences. This is a replaceable
+starting point, not a claim that this algorithm is optimal.
+
+A literal keyword baseline is implemented for comparison. The graph explains
+professional context; popularity is not used as a relevance score. Embedding
+retrieval, pairwise reranking, and reciprocal matching are considered in
+[the product and matching decision](docs/product.md), with promotion gates
+based on user judgments rather than synthetic demo scores.
+
+Similar projects already exist. See [related projects and launch scope](docs/related-projects.md)
+for the overlap, our proposed focus, and what remains before a broader launch.
 
 ```sh
-python3 run.py evaluate --criteria examples/criteria.md --profiles examples/profiles.json --backend host --responses examples/responses.json --output data/demo-offline
+luma-review compare --workspace data/my-workspace --event EVENT_ID --labels data/relevance.json --k 10
 ```
 
-Each run writes `results.json` and `report.md`. Failures remain visible in the
-report, and the command exits nonzero when a profile fails. Successful results
-are cached by criteria, profile sources, backend and selected model. Repeating
-the same command resumes from validated cache entries. Use `--refresh` after
-changing a CLI's default model or updating an Ollama tag in place.
+Labels are a JSON object from canonical profile URL to `true` or `false`.
+The comparison reports precision, judged coverage, and recall over the labeled
+sample. Unjudged people are not treated as negative examples.
 
-## Subscription authentication
+Exact-quote validation establishes traceability, not source truth or logical
+sufficiency. Missing information produces `unknown`, not `no`. Proposed
+professional value does not imply willingness to meet, buy, invest, or collaborate.
 
-| Backend | Setup | Authentication used |
-| --- | --- | --- |
-| `codex` | Install the official Codex CLI; run `codex login` | Saved Codex CLI login, including ChatGPT subscription access |
-| `claude` | Install Claude Code; run `claude auth login` | Claude Code login, including eligible Claude subscription access |
-| `ollama` | Start Ollama and install a model | Local model server; no subscription required |
-| `host` | Use the bundled skill to author a response file | The current assistant session; no nested inference process |
-
-Subscription access is through the official CLIs, not extracted OAuth tokens
-or a replacement API endpoint. Requests consume the selected account's normal
-allowance. Provider policies, model entitlements and limits still apply. Existing
-environment credentials can affect CLI authentication; `doctor` reports the
-method without exposing account identifiers. The tool never reads auth files
-or automatically falls back to another provider or API billing.
-
-The Codex adapter ignores user config for its isolated evaluation subprocess,
-while retaining CLI authentication; use `--model` to select a model explicitly.
-The Claude adapter uses safe mode and disables built-in and configured MCP
-tools. The installed CLIs must support the flags in [backend documentation](docs/backends.md).
-
-References: [Codex non-interactive execution](https://developers.openai.com/codex/noninteractive/),
-[Codex authentication](https://developers.openai.com/codex/auth/),
-[Claude programmatic execution](https://code.claude.com/docs/en/headless),
-[Claude authentication](https://code.claude.com/docs/en/authentication),
-[Ollama structured chat](https://docs.ollama.com/api/chat).
-
-## Use with Codex
-
-Open this repository as a Codex project. The skill lives at
-[.agents/skills/luma-profile-review/SKILL.md](.agents/skills/luma-profile-review/SKILL.md).
-It can also be used by giving Codex that file explicitly. For example:
-
-> Use the luma-profile-review skill in this repository. Read my criteria.md,
-> collect accessible profiles from this Luma event, and evaluate the first
-> 10 profiles using the host backend. Show evidence and missing information.
-
-The skill collects sources using the browser tools available in the current
-host. A bare CLI session without browser tools cannot automatically collect
-authenticated Luma profiles; provide a dataset or use a browser-enabled Codex
-session. This release does not ship an unattended scraper, access hidden lists,
-or obtain attendee email addresses.
-
-For `host`, export self-contained tasks, let the current assistant answer them,
-then validate and score those answers:
+## CLI workflow and portable guides
 
 ```sh
-python3 run.py export-prompts --criteria criteria.md --profiles data/profiles.json --out data/tasks.json
-python3 run.py evaluate --criteria criteria.md --profiles data/profiles.json --backend host --responses data/responses.json --output data/run
+luma-review onboard --workspace data/my-workspace
+luma-review event --workspace data/my-workspace --url https://luma.com/EVENT --name "My event"
+luma-review analyze --workspace data/my-workspace --event EVENT_ID --backend codex
+luma-review guide --workspace data/my-workspace --event EVENT_ID --out data/my-guide.html
 ```
 
-The response file has `criteria_sha256` and `profiles_sha256` from `tasks.json`, and a `responses`
-object keyed by canonical profile URL. See [the data contract](docs/data-format.md).
+Swap `codex` for `claude`, or select `ollama --model YOUR_INSTALLED_MODEL`.
+The exported HTML is self-contained and read-only: search, filters, evidence,
+and the graph work without a running server. Avoid sharing real event guides
+unless you intend to share their profile excerpts and professional brief.
 
-## Your own criteria and data
+For current-agent inference without MCP, use `tasks --stage structure`,
+`submit --stage structure`, then the equivalent matching commands. Each
+response batch is tied to a snapshot hash. Changed sources, briefs, criteria,
+or structured profiles invalidate affected evaluations. Source collection
+has a separate resumable queue.
+
+The original snapshot CLI remains supported:
 
 ```sh
-cp criteria.example.md criteria.md
-python3 run.py criteria --criteria criteria.md
+python3 run.py evaluate --criteria examples/criteria.md --profiles examples/profiles.json --backend host --responses examples/responses.json --output data/legacy-demo
 ```
 
-The initial draft is deliberately rejected until you add actual criteria and
-set `Status: active`. Add `must` conditions and weighted `prefer` conditions.
-Example rows are in [examples/criteria.md](examples/criteria.md); they are demo
-criteria, not a recommendation about whom you should meet.
+See [data formats](docs/data-format.md) for the snapshot and model contracts.
 
-Collection records, local criteria, configuration, caches and reports belong
-in ignored `data/` and `work/` folders. Public examples use fictional people
-and reserved example.org sources. No real participant data belongs in examples
-or commits. The live pilot data, if present in a local checkout, is ignored.
-
-Copy `luma-review.example.toml` to `luma-review.toml` for optional defaults.
-Command flags override TOML. `--config PATH` selects another file. Use `--limit`
-to evaluate a subset. The report states both sample size and collection scope.
-
-## Evaluation behavior
-
-- Missing evidence produces `unknown`, not `no`.
-- Confirmed failures of required criteria produce `Outside criteria`.
-- Incomplete required criteria produce `Needs verification`.
-- Preferences produce confirmed points and separate uncertain points.
-- Every conclusive verdict needs a quote present in a cited source excerpt.
-- Coverage measures available evidence, not probability of correctness.
-
-Exact-quote validation establishes traceability. It does not establish source
-truth or prove that a model interpreted a quote correctly. Review important
-matches and mismatches. Ranking can reflect how much information was available.
-
-## Development
+## Development and verification
 
 ```sh
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s tests -v
+node --check src/luma_review/static/app.js
 ```
 
-Tests use synthetic data and mocked CLI/HTTP responses. They do not require
-subscriptions, start browsers, or download models. CI runs them on Python 3.11
-and 3.13. Backend smoke-test results for this checkout are in
-[docs/validation.md](docs/validation.md).
+Tests cover onboarding, source queues, evidence validation, stale inputs,
+identity, graph semantics, feedback, model adapters, local HTTP boundaries,
+and an actual MCP stdio client/server exchange when the extra is installed.
+CI installs the MCP extra and runs on Python 3.11 and 3.13. See
+[the validation record](docs/validation.md) for live versus mocked checks.
 
-To add a model provider, implement `generate(prompt, schema, profile_url)` and
-an `identity` property, then route it in `make_backend`. Providers return the
-same schema; the evaluator owns validation and scoring. To add a collector,
-emit the existing versioned profile format. No model-specific data schema is
-required.
+The public examples and screenshots are fictional. Real event data belongs
+under ignored `data/`; intermediates belong under ignored `work/`. No attendee
+records, authentication tokens, browser profiles, or local configuration belong
+in commits. The code is not affiliated with Luma or LinkedIn.
