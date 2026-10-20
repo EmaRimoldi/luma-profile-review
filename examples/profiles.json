@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "event": {
+    "name": "Synthetic networking demo",
+    "url": "https://example.org/event",
+    "displayed_guest_count": 3,
+    "collection_scope": "Three fictional profiles for pipeline and model smoke tests.",
+    "roster_complete": true
+  },
+  "people": [
+    {
+      "name": "Demo Builder (fictional)",
+      "profile_url": "https://luma.com/user/demo-builder",
+      "sources": [
+        {
+          "id": "s1",
+          "url": "https://example.org/people/builder",
+          "title": "Synthetic builder bio",
+          "retrieved_at": "2026-10-19T12:00:00-07:00",
+          "text": "I am the cofounder of Demo Compute. I currently build LLM inference systems. I am actively seeking technical collaborators."
+        }
+      ],
+      "outbound_links": []
+    },
+    {
+      "name": "Demo Photographer (fictional)",
+      "profile_url": "https://luma.com/user/demo-photographer",
+      "sources": [
+        {
+          "id": "s1",
+          "url": "https://example.org/people/photographer",
+          "title": "Synthetic photographer bio",
+          "retrieved_at": "2026-10-19T12:00:00-07:00",
+          "text": "I work exclusively on landscape photography. I do not work on AI or LLM inference. I am an employee, not a founder."
+        }
+      ],
+      "outbound_links": []
+    },
+    {
+      "name": "Demo Unavailable (fictional)",
+      "profile_url": "https://luma.com/user/demo-unavailable",
+      "sources": [],
+      "outbound_links": [],
+      "notes": "Synthetic example with no readable source."
+    }
+  ]
+}

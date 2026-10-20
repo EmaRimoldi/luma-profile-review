@@ -1,0 +1,5 @@
+[inference]
+backend = "codex"  # codex | claude | ollama | host
+# model = "your-model-name"  # CLI defaults are used when omitted
+# base_url = "http://127.0.0.1:11434"  # Ollama only
+timeout = 180

@@ -1,0 +1,77 @@
+{
+  "criteria_sha256": "de257580939f7a00948d696b8ead0e73c0e7184cc8275f8c6180dfd0cc707047",
+  "responses": {
+    "https://luma.com/user/demo-builder": {
+      "summary": "Synthetic inference founder explicitly seeking collaborators.",
+      "assessments": [
+        {
+          "criterion_id": "M1",
+          "verdict": "yes",
+          "reason": "Current work is explicitly stated.",
+          "evidence": [
+            {
+              "source_id": "s1",
+              "quote": "I currently build LLM inference systems."
+            }
+          ]
+        },
+        {
+          "criterion_id": "P1",
+          "verdict": "yes",
+          "reason": "Current cofounder role is explicitly stated.",
+          "evidence": [
+            {
+              "source_id": "s1",
+              "quote": "I am the cofounder of Demo Compute."
+            }
+          ]
+        },
+        {
+          "criterion_id": "P2",
+          "verdict": "yes",
+          "reason": "The source explicitly seeks collaborators.",
+          "evidence": [
+            {
+              "source_id": "s1",
+              "quote": "I am actively seeking technical collaborators."
+            }
+          ]
+        }
+      ]
+    },
+    "https://luma.com/user/demo-photographer": {
+      "summary": "Synthetic profile explicitly does not work on LLM inference.",
+      "assessments": [
+        {
+          "criterion_id": "M1",
+          "verdict": "no",
+          "reason": "The person explicitly says they do not work on inference.",
+          "evidence": [
+            {
+              "source_id": "s1",
+              "quote": "I do not work on AI or LLM inference."
+            }
+          ]
+        },
+        {
+          "criterion_id": "P1",
+          "verdict": "no",
+          "reason": "The source explicitly rules out a founder role.",
+          "evidence": [
+            {
+              "source_id": "s1",
+              "quote": "I am an employee, not a founder."
+            }
+          ]
+        },
+        {
+          "criterion_id": "P2",
+          "verdict": "unknown",
+          "reason": "No collaboration intention is stated.",
+          "evidence": []
+        }
+      ]
+    }
+  },
+  "profiles_sha256": "14d11d4dfc5fe53be508aa937eb13df4ffe1b1b055a9ec44d232cb83ee53e838"
+}
