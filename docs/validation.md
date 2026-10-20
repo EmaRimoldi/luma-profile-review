@@ -16,17 +16,28 @@ Validated locally on October 19, 2026 (America/Los_Angeles).
 | Luma browser acquisition | Authenticated event guest list opened; one profile and its external profile links inspected |
 | MCP Python SDK 1.30.0 stdio integration | Actual client/server handshake and full onboarding → roster → sources → structure tasks/submission → matching tasks/submission → guide flow passed |
 | Local browser product QA | Onboarding save, guide search, saved/irrelevant feedback and reversal, evidence details, graph node interaction and source links verified on the fictional walkthrough |
+| Private live-event pilot | Imported 311 other accessible attendee identities; structured and matched a systematic sample of 30, using 30 Luma pages, 28 linked LinkedIn profiles and 5 other linked professional pages |
+| Live-pilot display fixes | Browser verified source dates in local time and a graph that omits attendees with no documented context; all connected context nodes remain available |
 | Portable guide | Self-contained HTML exports include inline assets and escaped embedded data; read-only mode supports search, filters, evidence and graph |
 
-No actual attendee was ranked: personal criteria have not been defined. The
-real profile used for the access check is in ignored `data/private/`, and is
-not part of the source distribution or synthetic examples. Linked profile
-URLs were observed, not fetched as part of that access check.
+The initial access check inspected one Luma profile without external enrichment.
+A later private pilot used profile-derived professional criteria and the current
+agent's task/submit workflow to structure and match 30 real attendees. The
+systematic sample spanned an alphabetical roster; it was not random. LinkedIn
+headline/About excerpts and selected linked professional pages were read, not
+complete employment histories. Real profiles, the user's brief, research extracts,
+responses and guide outputs remain under ignored `data/private/` and `work/`.
+They are not part of this source distribution or its fictional examples.
+
+The pilot produced 25 profiles with at least one supported preference and 15
+ties at the maximum score, exposing that the initial criteria are broad and
+overlapping. No user relevance labels or post-event outcomes were collected.
+This establishes a live workflow trial, not measured recommendation quality.
 
 The repository includes CI for Python 3.11 and 3.13 with the optional MCP extra
 installed. Client configuration generation is tested for Codex, Claude Code,
 Cursor, GitHub Copilot/VS Code, OpenCode, and Claude Desktop; this is not a claim
 that every client or its browser integration has been manually exercised.
 Unit tests and fictional fixtures do not establish recommendation quality or
-that external websites will keep the same interface. Full live-event collection
-and multi-user relevance pilots remain required before broader claims.
+that external websites will keep the same interface. Multi-event collection,
+enrichment and multi-user relevance pilots remain required before broader claims.
