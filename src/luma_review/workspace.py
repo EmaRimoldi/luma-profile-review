@@ -20,6 +20,7 @@ from .onboarding import QUESTIONS, criteria_from_brief, make_brief
 from .pipeline import write_json
 from .professional import referenced_urls, structure_prompt, structure_schema, validate_structure
 from .presentation import present_brief, present_criteria, present_guide
+from .providers import BackendUnavailable
 
 
 class Workspace:
@@ -317,6 +318,10 @@ class Workspace:
                             results[request['profile_url']] = backend.generate(request['prompt'], tasks['schema'], request['profile_url'] + suffix)
                             characters = len(request['prompt'])
                         metric(stage, started, characters, len(sourced))
+                    except BackendUnavailable as error:
+                        for request in sourced:
+                            failure(stage, request['profile_url'], error)
+                        raise
                     except ReviewError as error:
                         for request in sourced:
                             failure(stage, request['profile_url'], error)

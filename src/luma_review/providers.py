@@ -20,6 +20,11 @@ class BackendError(ReviewError):
     pass
 
 
+class BackendUnavailable(BackendError):
+    """Account, transport, executable, or timeout failure affecting the whole run."""
+    pass
+
+
 def run_cli(args: list[str], prompt: str, cwd: Path, timeout: float, cancel=None) -> str:
     env = {k: v for k, v in os.environ.items() if k not in {'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'CODEX_API_KEY'}}
     try:
@@ -58,14 +63,14 @@ def run_cli(args: list[str], prompt: str, cwd: Path, timeout: float, cancel=None
                             os.killpg(process.pid, signal.SIGKILL)
                         process.communicate()
     except FileNotFoundError:
-        raise BackendError(f"{args[0]} is not installed or not on PATH") from None
+        raise BackendUnavailable(f"{args[0]} is not installed or not on PATH") from None
     except subprocess.TimeoutExpired:
-        raise BackendError(f"{args[0]} timed out; no fallback backend was used") from None
+        raise BackendUnavailable(f"{args[0]} timed out; no fallback backend was used") from None
     if result.returncode:
         # Provider diagnostics can contain prompt text or account identifiers.
         if "not logged in" in (result.stdout + result.stderr).lower():
-            raise BackendError("CLI is not logged in. Run codex login or claude auth login for the selected backend")
-        raise BackendError(f"{args[0]} exited with code {result.returncode}. Check its login and usage limits")
+            raise BackendUnavailable("CLI is not logged in. Run codex login or claude auth login for the selected backend")
+        raise BackendUnavailable(f"{args[0]} exited with code {result.returncode}. Check its login and usage limits")
     return result.stdout
 
 
@@ -180,7 +185,7 @@ class OllamaBackend:
                 envelope = decode_json(response.read().decode())
         except (URLError, TimeoutError, OSError) as error:
             code = f" (HTTP {error.code})" if isinstance(error, HTTPError) else ""
-            raise BackendError(f"Ollama request failed{code}; check the server and installed model") from None
+            raise BackendUnavailable(f"Ollama request failed{code}; check the server and installed model") from None
         if envelope.get("error") or not isinstance(envelope.get("message"), dict):
             raise BackendError("Ollama returned an error or missing message")
         if envelope.get('done_reason') == 'length':
@@ -250,7 +255,7 @@ class APIBackend:
                 envelope = decode_json(response.read().decode())
         except (URLError, TimeoutError, OSError, ValueError):
             # Never surface provider bodies, request headers, keys, or excerpts.
-            raise BackendError("API request failed. Check your key, model access, balance, and provider limits; no fallback was used") from None
+            raise BackendUnavailable("API request failed. Check your key, model access, balance, and provider limits; no fallback was used") from None
         if self.name == "openai":
             if envelope.get("status") != "completed":
                 raise BackendError("API response was incomplete or refused")

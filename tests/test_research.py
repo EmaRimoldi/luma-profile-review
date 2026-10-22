@@ -259,3 +259,18 @@ class MCPBrowserThreadTests(unittest.IsolatedAsyncioTestCase):
             await server.call_tool('collect_event_profiles',{'event_id':'synthetic','limit':1})
         self.assertNotEqual(observed[0],owner)
         self.assertEqual(observed[-1],'closed')
+
+
+class ProviderOutageTests(unittest.TestCase):
+    def test_unavailable_provider_stops_the_run_and_retains_a_retryable_checkpoint(self):
+        from luma_review.providers import BackendUnavailable
+        provider=Mock(identity={'backend':'outage'},batch_size=1)
+        provider.generate.side_effect=BackendUnavailable('Check model access')
+        with tempfile.TemporaryDirectory() as directory:
+            workspace=Workspace(Path(directory));workspace.save_brief(DEMO_ANSWERS)
+            dataset=json.loads((Path(__file__).resolve().parents[1]/'examples/profiles.json').read_text())
+            event=workspace.import_dataset(dataset)['event_id']
+            with self.assertRaisesRegex(BackendUnavailable,'model access'):workspace.analyze(event,provider)
+            self.assertEqual(provider.generate.call_count,1)
+            self.assertEqual(len(workspace.read(workspace.directory(event)/'errors.json')),1)
+            self.assertEqual(len(workspace.dataset(event)['people']),3)
