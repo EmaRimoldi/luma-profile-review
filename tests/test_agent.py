@@ -1,11 +1,15 @@
 """Contracts for the in-app subscription runner and its constrained research bridge."""
 import tempfile
+import io
+import queue
+from types import SimpleNamespace
 import time
 import unittest
 from pathlib import Path
 
 from luma_review.agent import AgentRunner
 from luma_review.core import ReviewError, parse_criteria
+from luma_review.codex_app import CodexApp
 from luma_review.demo import DEMO_ANSWERS
 from luma_review.managed_browser import ResearchBrowser, research_url
 from luma_review.workspace import Workspace
@@ -87,3 +91,14 @@ class InAppAgentTests(unittest.TestCase):
         browser=ResearchBrowser(self.workspace.root)
         for name in ['Register 1 guest','Send invitation','Join now','Buy tickets','Accept terms']:
             with self.assertRaises(ReviewError):browser.click(name)
+
+
+class AppServerTransportTests(unittest.TestCase):
+    def test_finished_reader_cannot_signal_eof_to_replacement_connection(self):
+        app=CodexApp.__new__(CodexApp)
+        previous,replacement=queue.Queue(),queue.Queue()
+        app.messages=replacement
+        app._read(SimpleNamespace(stdout=io.StringIO('{"id":1,"result":{}}\n')),previous)
+        self.assertEqual(previous.get()['id'],1)
+        self.assertIsNone(previous.get())
+        self.assertTrue(replacement.empty())

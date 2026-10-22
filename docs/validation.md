@@ -74,7 +74,7 @@ enrichment and multi-user relevance pilots remain required before broader claims
 
 ## Integrated Codex workflow (October 22, 2026)
 
-- 70 Python and 10 Node tests pass; GitHub CI covers Python 3.11 and 3.13.
+- 71 Python and 10 Node tests pass; GitHub CI covers Python 3.11 and 3.13.
 - A live ChatGPT-authenticated Codex app-server turn successfully calls the
   platform's dynamic progress tool, with the complete research tool catalog.
 - Runtime configuration confirms zero enabled inherited MCP servers and the
@@ -85,3 +85,8 @@ enrichment and multi-user relevance pilots remain required before broader claims
   restart. The first live event run detects an 82-person guest list gated to
   registered attendees; public profile collection is partial. Authentication
   alone does not establish event-specific roster access.
+
+- The first live run completes inside the platform: four publicly visible profiles
+  are collected, structured, and matched, and the guide loads automatically. All
+  four remain Needs verification because available professional evidence is
+  insufficient for the user’s criteria. No positive matches are invented.
