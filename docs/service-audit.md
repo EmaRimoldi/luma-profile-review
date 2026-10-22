@@ -153,6 +153,15 @@ The installed checks completed:
 - A separate, documented fictional demo workspace verified Save and Meet stack
   removal, Undo, reload persistence, graph node navigation, zoom, and fit.
   Attempting to load the demo into an existing workspace was correctly rejected.
+- Revision `77a74b4` was fetched from GitHub and installed non-editably again.
+  All 31 targeted cancellation/research tests passed using its installed modules
+  outside the checkout. An isolated UI run used fictional profiles and a local
+  Claude protocol fixture, not an authenticated Claude account: Stop terminated
+  the blocked owned child, kept three structure checkpoints and no profile errors,
+  and resume used one remaining matching request. Another UI refresh made zero
+  CLI calls. No additional paid inference was needed for these recovery checks.
+  The public HTTP benchmark was repeated with cache validation enabled: 0.2115 s
+  cold, 0.0007 s warm, and zero browser starts on the same public page.
 
 **103 Python tests and 10 JavaScript tests pass**. Cancellation checks use actual
 HTTP entry points, preserve a completed structure checkpoint, stop an owned CLI
