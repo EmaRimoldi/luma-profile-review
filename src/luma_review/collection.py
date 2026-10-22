@@ -25,7 +25,8 @@ def professional_links(page, profile_url):
     return result[:2]
 
 
-def collect_event(workspace, event_id, browser, limit=10, stop=lambda: False, progress=lambda **v: None):
+def collect_event(workspace, event_id, browser, limit=10, stop=lambda: False, progress=lambda **v: None,
+                  *, backend_identity=None):
     if type(limit) is not int or not 1 <= limit <= 100:
         raise ReviewError('Choose between 1 and 100 profiles for this batch.')
     event = workspace.dataset(event_id)['event']
@@ -38,8 +39,15 @@ def collect_event(workspace, event_id, browser, limit=10, stop=lambda: False, pr
         return []
     if not workspace.dataset(event_id)['people']:
         raise ReviewError('No accessible attendees found. Check this event’s guest-list access and retry.')
-    pending = {r['profile_url'] for stage in ['structure', 'matching']
-               for r in workspace.tasks(event_id, stage, 10000)['requests']}
+    pending = set()
+    for stage in ['structure', 'matching']:
+        tasks = workspace.tasks(event_id, stage, 10000, include_reviewed=backend_identity is not None)
+        records = workspace.read(workspace.directory(event_id) / (stage + '.json'), {})
+        for request in tasks['requests']:
+            record = records.get(request['profile_url'], {})
+            if (backend_identity is None or record.get('input_hash') != request['input_hash']
+                    or record.get('backend') != backend_identity):
+                pending.add(request['profile_url'])
     people = workspace.dataset(event_id)['people']
     # Finish interrupted analysis before paying to collect another batch.
     selected = [p for p in people if p['sources'] and p['profile_url'] in pending]

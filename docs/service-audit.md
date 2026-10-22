@@ -2,8 +2,8 @@
 
 This record distinguishes implemented adapters, actual provider calls, client
 connection checks, and simulated acceptance tests. Fictional examples are never
-reported as live attendee research. The implementation is on the public review
-branch `feature/agent-portability-audit`; `main` changes only after review/merge.
+reported as live attendee research. This record covers the 0.4 implementation
+and its review in [PR #2](https://github.com/EmaRimoldi/luma-profile-review/pull/2).
 
 ## Findings and changes
 
@@ -49,6 +49,9 @@ Additional fixes include:
   installed service: one HTTP 404, not a request for every remaining profile.
 - Referenced-identity cache dependencies update when a cited attendee is newly
   collected; unrelated roster additions do not rerun existing assessments.
+- Preparation queues include the selected backend/model identity. Changing models
+  reanalyzes completed profiles while reusing collected excerpts; preparing again
+  with the same model reuses its validated results.
 - Public install instructions use `main`, distinguish Git distribution from a
   registry package, and explain backend selection, sign-in, recovery, and limits.
 
@@ -163,7 +166,7 @@ The installed checks completed:
   The public HTTP benchmark was repeated with cache validation enabled: 0.2115 s
   cold, 0.0007 s warm, and zero browser starts on the same public page.
 
-**103 Python tests and 10 JavaScript tests pass**. Cancellation checks use actual
+**104 Python tests and 10 JavaScript tests pass**. Cancellation checks use actual
 HTTP entry points, preserve a completed structure checkpoint, stop an owned CLI
 child, reject overlapping jobs, and exercise 20 consecutive Stop/restart cycles
 before a successful resume. Cache checks repair 14 kinds of valid-JSON corruption

@@ -76,6 +76,29 @@ class InAppAgentTests(unittest.TestCase):
     def test_unknown_action_and_bad_budget_are_rejected(self):
         for action,limit in [('shell',10),('prepare',0),('prepare',True),('prepare',101)]:
             with self.assertRaises(ReviewError):self.runner.action(action,self.event,limit)
+
+    def test_preparing_with_a_new_model_reanalyzes_without_reading_sources_again(self):
+        from unittest.mock import Mock
+        backends = []
+        def factory(name, model, **kwargs):
+            provider = FakeBackend()
+            provider.identity = {'backend': name, 'model': model or 'default'}
+            provider.generate = Mock(wraps=provider.generate)
+            backends.append(provider)
+            return provider
+        self.runner.backend_factory = factory
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 2)
+        self.runner.browser.open = Mock(side_effect=AssertionError('Completed sources were reread'))
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 0)
+        save_settings(self.workspace, {'model': 'another-model'})
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 2)
+        self.runner.browser.open.assert_not_called()
+        for stage in ['structure', 'matching']:
+            records = self.workspace.read(self.workspace.directory(self.event) / (stage + '.json'))
+            self.assertEqual(records[URL]['backend']['model'], 'another-model')
     def test_stop_does_not_reopen_collection_and_preserves_results(self):
         self.runner.action('stop')
         self.assertTrue(self.runner.stop_requested.is_set())

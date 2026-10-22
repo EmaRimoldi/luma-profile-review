@@ -182,7 +182,8 @@ class AgentRunner:
                 self.stop_requested.set()
                 self.update(needs_action='Your preferences or model changed. Prepare again to apply them.')
             return self.stop_requested.is_set()
-        selected = collect_event(self.workspace, event_id, self.browser, limit, stopped, self.update_job)
+        selected = collect_event(self.workspace, event_id, self.browser, limit, stopped, self.update_job,
+                                 backend_identity=provider.identity)
         guide = self.workspace.analyze(event_id, provider, profile_urls=set(selected), stop=stopped,
                                        progress=lambda value: self.update_job(**value))
         metrics = {key: value - previous_metrics[key] for key, value in self.browser.reader.metrics.items()}
