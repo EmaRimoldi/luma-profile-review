@@ -71,3 +71,17 @@ enrichment and multi-user relevance pilots remain required before broader claims
   at 1,000 / 10,000 profiles, excluding DOM, network, and model work. Relevance
   improvement remains unmeasured; the default personalized assessment order
   was not replaced with a lexical score.
+
+## Integrated Codex workflow (October 22, 2026)
+
+- 70 Python and 10 Node tests pass; GitHub CI covers Python 3.11 and 3.13.
+- A live ChatGPT-authenticated Codex app-server turn successfully calls the
+  platform's dynamic progress tool, with the complete research tool catalog.
+- Runtime configuration confirms zero enabled inherited MCP servers and the
+  model shell disabled. User configuration is preserved.
+- The hosted-to-local flow carries the user's actual profile and event through
+  a URL fragment and review screen. No chat or manual file import is required.
+- The app's persistent browser reconnects to a completed Luma session after
+  restart. The first live event run detects an 82-person guest list gated to
+  registered attendees; public profile collection is partial. Authentication
+  alone does not establish event-specific roster access.
