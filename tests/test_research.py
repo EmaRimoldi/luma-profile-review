@@ -292,3 +292,12 @@ class ReferencedIdentityCacheTests(unittest.TestCase):
             self.assertNotIn(URL,[r['profile_url'] for r in workspace.tasks(event,'structure')['requests']])
             workspace.capture_attendees(event,[{'name':'Referred person','profile_url':target}])
             self.assertIn(URL,[r['profile_url'] for r in workspace.tasks(event,'structure')['requests']])
+
+
+class ProfileLinkScopeTests(unittest.TestCase):
+    def test_platform_footer_links_are_not_attributed_to_the_attendee(self):
+        from luma_review.collection import professional_links
+        page={'links':[{'url':url} for url in ['https://help.luma.com/','https://x.com/LumaHQ',
+            'https://apps.apple.com/app/luma','https://www.linkedin.com/in/synthetic-engineer',
+            'https://github.com/synthetic-engineer']]}
+        self.assertEqual(professional_links(page,URL),['https://www.linkedin.com/in/synthetic-engineer','https://github.com/synthetic-engineer'])

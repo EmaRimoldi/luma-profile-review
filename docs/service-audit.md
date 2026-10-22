@@ -23,7 +23,8 @@ Additional fixes include:
 
 - Luma's attendee-name-labelled guest button, dialog-scoped extraction, canonical
   deduplication, explicit partial coverage, and protection against capturing hosts
-  from the event page as guests.
+  from the event page as guests. Luma’s own social/help/app footer links are
+  excluded from attendee enrichment.
 - Bounded redirects/response size, DNS-address validation and pinned HTTP
   connections, private-address blocking, readable text extraction, and corrupt
   cache recovery. No cookies or model credentials enter public HTTP requests.
@@ -148,7 +149,7 @@ The installed checks completed:
   removal, Undo, reload persistence, graph node navigation, zoom, and fit.
   Attempting to load the demo into an existing workspace was correctly rejected.
 
-**94 Python tests and 10 JavaScript tests pass**. CI covers Python 3.11 and 3.13
+**95 Python tests and 10 JavaScript tests pass**. CI covers Python 3.11 and 3.13
 on Linux and installs the non-editable package outside the checkout to check its
 bundled fonts, graph code, and standalone guide. The shared skill validator passes.
 The sandbox is configuration/data isolation on the same macOS account, not an

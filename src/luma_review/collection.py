@@ -12,7 +12,11 @@ def professional_links(page, profile_url):
         if parts.scheme not in {'http', 'https'} or not parts.hostname:
             continue
         host = parts.hostname.lower().removeprefix('www.')
-        if host in {'luma.com', 'lu.ma', 'facebook.com', 'instagram.com', 'youtube.com', 'google.com'}:
+        if host in {'luma.com', 'lu.ma', 'facebook.com', 'instagram.com', 'youtube.com', 'google.com', 'apps.apple.com', 'play.google.com'} or host.endswith('.luma.com'):
+            continue
+        # Luma's div-based footer can survive readable-text extraction. Its own
+        # social link is platform navigation, not an attendee's professional link.
+        if host in {'x.com', 'twitter.com'} and parts.path.lower().strip('/').split('/')[0] == 'lumahq':
             continue
         if any(word in parts.path.lower().split('/') for word in ['login', 'signin', 'share', 'intent', 'privacy', 'terms']):
             continue
