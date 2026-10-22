@@ -39,6 +39,8 @@ def add_commands(commands):
             p.add_argument("--model")
             p.add_argument("--base-url")
             p.add_argument("--refresh", action="store_true")
+            p.add_argument("--batch-size", type=int, choices=[1, 3], help="CLI profiles per request (default 3)")
+            p.add_argument("--timeout", type=float, help="Per-model-request timeout in seconds (default 180)")
         if name == "guide":
             p.add_argument("--out", type=Path)
             p.add_argument("--format", choices=["html", "json"], default="html")
@@ -92,7 +94,12 @@ def run(args, config):
     elif args.command == "analyze":
         backend = make_backend(args.backend or config.get("backend", "codex"), args.model or config.get("model"),
                                base_url=args.base_url or config.get("base_url", "http://127.0.0.1:11434"),
+                               timeout=args.timeout if args.timeout is not None else config.get('timeout', 180),
                                work_dir=workspace.root / "work/model-runs")
+        if args.batch_size is not None:
+            if not hasattr(backend, "generate_batch"):
+                raise ReviewError("Batch size is configurable for Codex and Claude CLI backends only")
+            backend.batch_size = args.batch_size
         guide = workspace.analyze(args.event, backend, args.refresh,
                                   progress=lambda value: print(json.dumps(value), file=sys.stderr, flush=True))
         result = {"event_id": args.event, "counts": guide["counts"], "errors": guide["errors"]}

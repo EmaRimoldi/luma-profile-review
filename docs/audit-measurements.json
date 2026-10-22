@@ -1,0 +1,145 @@
+{
+  "live-codex-result": {
+    "backend": "codex",
+    "model": null,
+    "seconds": 33.724,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "model_requests": 4,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 5.108,
+        "prompt_characters": 1450,
+        "usage": {
+          "input_tokens": 9509,
+          "cached_input_tokens": 0,
+          "output_tokens": 208
+        }
+      },
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 6.633,
+        "prompt_characters": 1462,
+        "usage": {
+          "input_tokens": 12533,
+          "cached_input_tokens": 0,
+          "output_tokens": 120
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 11.976,
+        "prompt_characters": 4819,
+        "usage": {
+          "input_tokens": 13256,
+          "cached_input_tokens": 0,
+          "output_tokens": 346
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 9.784,
+        "prompt_characters": 4471,
+        "usage": {
+          "input_tokens": 13151,
+          "cached_input_tokens": 0,
+          "output_tokens": 355
+        }
+      }
+    ],
+    "export_bytes": 680832
+  },
+  "live-codex-batched-result": {
+    "backend": "codex",
+    "model": null,
+    "seconds": 26.192,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "model_requests": 2,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 11.075,
+        "prompt_characters": 3513,
+        "usage": {
+          "input_tokens": 13234,
+          "cached_input_tokens": 0,
+          "output_tokens": 445
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 15.003,
+        "prompt_characters": 10352,
+        "usage": {
+          "input_tokens": 11653,
+          "cached_input_tokens": 0,
+          "output_tokens": 696
+        }
+      }
+    ],
+    "export_bytes": 680404
+  },
+  "research-benchmark": {
+    "fixture": "Synthetic navigation-heavy professional page; same bio in both inputs",
+    "old_dom_payload_characters": 76702,
+    "new_http_payload_characters": 1393,
+    "payload_reduction_percent": 98.18,
+    "extraction_cpu_ms_per_page": 4.553,
+    "browser_starts": 0,
+    "token_counts": "Not estimated: actual provider usage is recorded by customer-smoke.py",
+    "public_http": {
+      "url": "https://jamiesimon.io/",
+      "cold_seconds": 0.2164,
+      "warm_seconds": 0.0002,
+      "text_characters": 574,
+      "metrics": {
+        "http_requests": 1,
+        "cache_hits": 0,
+        "download_bytes": 11471,
+        "returned_characters": 574,
+        "http_seconds": 0.2162109169876203,
+        "dom_reads": 0
+      }
+    }
+  }
+}

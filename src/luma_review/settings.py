@@ -7,14 +7,26 @@ DEFAULTS = {"backend": "agent", "model": "", "luma": "browser", "setup_complete"
 
 
 def read_settings(workspace):
-    return {**DEFAULTS, **workspace.read(workspace.root / "settings.json", {})}
+    saved = workspace.read(workspace.root / 'settings.json', {})
+    if not isinstance(saved, dict):
+        raise ReviewError('Invalid saved settings.json. Restore a backup or choose a new workspace.')
+    settings = {**DEFAULTS, **saved}
+    validate(settings)
+    return settings
 
 
 def save_settings(workspace, value):
     if set(value) - {"backend", "model", "luma", "setup_complete"}:
         raise ReviewError("Unsupported setting")
     settings = {**read_settings(workspace), **value}
-    if settings["backend"] not in BACKENDS:
+    validate(settings)
+    with workspace.locked():
+        write_json(workspace.root / "settings.json", settings)
+    return settings
+
+
+def validate(settings):
+    if not isinstance(settings['backend'], str) or settings["backend"] not in BACKENDS:
         raise ReviewError("Choose a supported model connection")
     model = settings["model"]
     if not isinstance(model, str) or model.startswith("-") or len(model) > 200 or any(ord(c) < 32 for c in model):
@@ -23,6 +35,3 @@ def save_settings(workspace, value):
         raise ReviewError("Choose browser sign-in or a profile snapshot")
     if type(settings["setup_complete"]) is not bool:
         raise ReviewError("Invalid setup state")
-    with workspace.locked():
-        write_json(workspace.root / "settings.json", settings)
-    return settings

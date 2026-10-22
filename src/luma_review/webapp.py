@@ -58,16 +58,18 @@ class Application:
                 def update(**values):
                     with self.job_lock:
                         self.job.update(values)
-                self.agent = AgentRunner(self.workspace, update)
+                self.agent = AgentRunner(self.workspace, update, api_key=lambda name: self.api_keys.get(name))
             return self.agent
 
     def agent_state(self):
         if self.agent:
             return self.agent.snapshot()
         from .managed_browser import ResearchBrowser
-        return {"installed": bool(shutil.which("codex")), "connected": False, "busy": False,
+        from .agent import selected_backend
+        backend = selected_backend(self.workspace)
+        return {"backend": backend, "installed": bool(shutil.which(backend)), "connected": False, "busy": False,
                 "browser_available": ResearchBrowser.available(), "luma_connected": False,
-                "message": "Connect Codex to prepare your guide here."}
+                "message": "Connect your selected agent to prepare your guide."}
 
     def agent_action(self, data):
         action = data.get("action")
@@ -153,6 +155,8 @@ class Application:
 
 
 def make_server(workspace: Workspace, port=8765):
+    if type(port) is not int or not 0 <= port <= 65535:
+        raise ReviewError("Choose a port between 0 and 65535")
     app = Application(workspace)
     class Handler(BaseHTTPRequestHandler):
         server_version = "LumaReviewLocal/0.2"

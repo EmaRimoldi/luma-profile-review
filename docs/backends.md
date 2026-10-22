@@ -2,7 +2,7 @@
 
 ## Codex
 
-Uses `codex exec` with JSON Schema output, an ephemeral session, a read-only
+Uses `codex exec --json` with JSON Schema output, an ephemeral session, a read-only
 sandbox, shell tool disabled, and web search disabled. Authentication remains
 managed by the CLI. `--ignore-user-config` avoids inheriting a user's MCP
 configuration into this evaluation. It does not claim to override managed
@@ -68,3 +68,30 @@ a separate UI server process's in-memory key. API charges are separate from
 subscriptions. No provider fallback occurs automatically. Structured-output
 contracts are covered by mocked transport tests; live API accounts were not
 used during the redesign.
+
+## Shared in-app research (0.4)
+
+Every listed backend can now prepare a guide in the local app. Collection is
+model-independent: HTTP for public professional pages, headless DOM for dynamic
+and authenticated pages. Codex app-server handles its connection/catalog UI;
+actual inference uses the same validated adapter contract as other backends.
+Codex need not be installed to use Claude, Ollama, or an API backend.
+
+CLI adapters batch up to three sourced profiles per stage to amortize agent
+startup and system-context overhead. Each person's result is still validated
+and checkpointed separately. A malformed or missing batch response is a visible
+failure; it does not trigger another provider. Profiles with no sources are
+assigned unknown judgments without a model call. Ollama remains sequential,
+with an explicit **16,384-token context**, temperature 0, and 4,096-output-token
+limit to avoid loading a model's largest context by default. Input extremes
+and weak local models can still fail validation; choose a suitable model.
+
+`work/usage.jsonl` records successful model response timings, prompt character
+counts, backend identity, and token counts reported by the provider. It contains
+no prompts, source URLs, or credentials. Provider counts include their own system
+context and can differ greatly from prompt characters. Missing counts mean
+unavailable, not zero; failures before a response may still consume tokens.
+CLI Stop terminates the owned process group; network model calls stop between
+requests, bounded by their request timeout. `analyze --timeout 60` sets the
+per-request timeout. Batch cache entries still depend on each person's own
+sources, criteria, backend, and model, so a repeat run makes no model calls.

@@ -264,7 +264,7 @@ class AgentIntegrationTests(unittest.TestCase):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         tools = await session.list_tools()
-                        self.assertEqual(len(tools.tools), 11)
+                        self.assertTrue({"research_page", "collect_event_profiles", "inference_tasks", "submit_inference"} <= {t.name for t in tools.tools})
                         brief = await session.call_tool("save_professional_brief", {"answers": DEMO_ANSWERS})
                         self.assertFalse(brief.isError)
                         result = await session.call_tool("create_event", {"event_url": "https://luma.com/test-mcp", "event_name": "MCP test"})

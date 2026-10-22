@@ -43,7 +43,7 @@ class CodexApp:
         self.messages, self.next_id = queue.Queue(), 0
         self.tool = None
         threading.Thread(target=self._read, args=(self.process, self.messages), daemon=True).start()
-        self.request('initialize', {'clientInfo': {'name': 'people_for_luma', 'title': 'People for Luma', 'version': '0.3.0'},
+        self.request('initialize', {'clientInfo': {'name': 'people_for_luma', 'title': 'People for Luma', 'version': '0.4.0'},
                                     'capabilities': {'experimentalApi': True}})
         self.send({'method': 'initialized', 'params': {}})
 
