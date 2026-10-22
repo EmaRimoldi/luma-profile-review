@@ -110,7 +110,7 @@ and does not invite guessing connections between unrelated people.
 After the user signs in on Luma in your browser, verify the session while
 collecting. The local app's browser handoff is not an authentication assertion.
 Enter sign-in codes only on Luma. Record optional `photo_url` and `contact_links`
-(email, linkedin, x) with `record_attendees` when these are actually published
+(linkedin, x) with `record_attendees` when these are actually published
 on the person's profile. Never derive an address from a name or employer.
 A photo/contact update does not require a new model assessment. The local
 Discover stack removes saved, planned-to-meet, met, and irrelevant people;

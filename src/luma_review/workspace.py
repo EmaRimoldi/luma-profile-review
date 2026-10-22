@@ -18,6 +18,7 @@ from .matching import evidence_ranking, keyword_ranking
 from .onboarding import QUESTIONS, criteria_from_brief, make_brief
 from .pipeline import write_json
 from .professional import structure_prompt, structure_schema, validate_structure
+from .presentation import present_brief, present_criteria, present_guide
 
 
 class Workspace:
@@ -336,6 +337,7 @@ class Workspace:
                   "keyword_baseline": keyword_ranking(data["people"], brief),
                   "errors": self.read(directory / "errors.json", {}), "demo": bool(data.get("demo")),
                   "matching_note": "Evidence-based matching is the initial experiment. Keyword ranking is a comparison baseline; the graph explains context and does not rank popularity."}
+        result = present_guide(result, self.read(self.root / "presentation-en.json", {}), assessments)
         write_json(directory / "guide.json", result)
         return result
 
@@ -359,5 +361,8 @@ class Workspace:
             data = self.read(path)
             events.append({"event_id": path.parent.name, "event": data["event"], "captured": len(data["people"]), "demo": bool(data.get("demo"))})
         path = self.root / "criteria.md"
-        return {"brief": self.brief(), "questions": QUESTIONS, "events": events,
-                "criteria_markdown": path.read_text(encoding="utf-8") if path.exists() else None}
+        brief = self.brief()
+        presentation = self.read(self.root / "presentation-en.json", {})
+        markdown = path.read_text(encoding="utf-8") if path.exists() else None
+        return {"brief": present_brief(brief, presentation), "questions": QUESTIONS, "events": events,
+                "criteria_markdown": present_criteria(markdown, brief, presentation) if markdown else None}

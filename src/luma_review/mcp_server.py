@@ -37,7 +37,7 @@ def create_server(root: Path):
     @server.tool(annotations=local_write)
     def record_attendees(event_id: str, attendees: list[dict[str, Any]], displayed_count: int | None = None,
                          complete: bool = False, scope: str = "Accessible Luma guest list collected by the user's agent.") -> dict[str, Any]:
-        """Record observed names and profile_url values. Optional photo_url and contact_links (email, linkedin, x) must come from the person's published profile, never guesses. Set complete only after exhausting the accessible list."""
+        """Record observed names and profile_url values. Optional photo_url and contact_links (linkedin, x) must come from the person's published profile, never guesses. Set complete only after exhausting the accessible list."""
         return workspace.capture_attendees(event_id, attendees, displayed_count, complete, scope)
 
     @server.tool(annotations=readonly)

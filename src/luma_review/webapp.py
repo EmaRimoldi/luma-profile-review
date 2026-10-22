@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import base64
+import re
 import os
 import secrets
 import shutil
@@ -21,11 +23,20 @@ STATIC = Path(__file__).parent / "static"
 
 def export_guide(guide: dict) -> str:
     data = json.dumps(guide, ensure_ascii=False).replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    fonts = (STATIC / "fonts/fonts.css").read_text()
+    def embed_font(match):
+        name = match.group(2).removeprefix("./")
+        path = (STATIC / "fonts" / name).resolve()
+        if not path.is_relative_to((STATIC / "fonts").resolve()) or path.suffix != ".woff2":
+            return match.group(0)
+        return "url(data:font/woff2;base64," + base64.b64encode(path.read_bytes()).decode() + ")"
+    fonts = re.sub(r"url\(([\"']?)([^)\"']+)\1\)", embed_font, fonts)
+    scripts = "</script><script>".join((STATIC / name).read_text() for name in
+              ("vendor/cytoscape.min.js", "context-graph.js", "ambient.js", "search.js", "app.js"))
     return ("<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
-            "<title>My event guide · Luma Profile Review</title><style>" + (STATIC / "app.css").read_text() +
-            "</style></head><body><div id='app'></div><div id='toast' role='status'></div>"
-            "<script>window.__EXPORTED_GUIDE__=" + data + ";</script><script>" + (STATIC / "search.js").read_text() + "</script><script>" +
-            (STATIC / "app.js").read_text() + "</script></body></html>")
+            "<title>My event guide · People for Luma</title><style>" + fonts + (STATIC / "app.css").read_text() + (STATIC / "polish.css").read_text() +
+            "</style></head><body><canvas id='ambient' aria-hidden='true'></canvas><div id='app'></div><div id='toast' role='status'></div>"
+            "<script>window.__EXPORTED_GUIDE__=" + data + ";</script><script>" + scripts + "</script></body></html>")
 
 
 class Application:
@@ -64,7 +75,7 @@ class Application:
 
     def guide(self, event_id):
         directory = self.workspace.directory(event_id)
-        paths = [self.workspace.root / "brief.json", self.workspace.root / "criteria.md"] + [directory / name for name in
+        paths = [self.workspace.root / "brief.json", self.workspace.root / "criteria.md", self.workspace.root / "presentation-en.json"] + [directory / name for name in
                  ("profiles.json", "structure.json", "matching.json", "feedback.json", "errors.json")]
         def signature():
             return tuple((p.stat().st_mtime_ns, p.stat().st_size) if p.exists() else None for p in paths)
@@ -137,9 +148,14 @@ def make_server(workspace: Workspace, port=8765):
                 if parsed.path == "/":
                     page = (STATIC / "index.html").read_text().replace("__LOCAL_TOKEN__", app.token)
                     self.send(page, content_type="text/html; charset=utf-8")
-                elif parsed.path in {"/app.js", "/app.css", "/search.js"}:
+                elif parsed.path in {"/app.js", "/app.css", "/search.js", "/polish.css", "/context-graph.js", "/ambient.js"} or parsed.path.startswith(("/fonts/", "/vendor/")):
                     name = parsed.path.removeprefix("/")
-                    self.send((STATIC / name).read_text(), content_type="text/javascript; charset=utf-8" if name.endswith("js") else "text/css; charset=utf-8")
+                    path = (STATIC / name).resolve()
+                    if not path.is_relative_to(STATIC.resolve()) or not path.is_file():
+                        self.send({"error": "Not found"}, 404)
+                        return
+                    types = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8"}
+                    self.send(path.read_bytes(), content_type=types.get(path.suffix, "application/octet-stream"))
                 elif parsed.path == "/api/state":
                     with app.job_lock:
                         job = dict(app.job)
@@ -149,7 +165,11 @@ def make_server(workspace: Workspace, port=8765):
                 elif parsed.path == "/api/integration":
                     self.send(integration_config(query.get("agent", ["codex"])[0], workspace.root))
                 elif parsed.path == "/api/export":
-                    self.send(export_guide(app.guide(query.get("event", [""])[0])), content_type="text/html; charset=utf-8", attachment="my-event-guide.html")
+                    guide = app.guide(query.get("event", [""])[0])
+                    if query.get("format", [""])[0] == "json":
+                        self.send(guide, attachment="my-event-guide.json")
+                    else:
+                        self.send(export_guide(guide), content_type="text/html; charset=utf-8", attachment="my-event-guide.html")
                 else:
                     self.send({"error": "Not found"}, 404)
             except (ReviewError, ValueError, KeyError, TypeError) as error:

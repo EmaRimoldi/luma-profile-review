@@ -207,6 +207,19 @@ class WebTests(ProductBase):
         with urlopen(self.base + "/api/guide?event=" + self.event_id) as response:
             self.assertEqual(json.load(response)["counts"]["recommended"], 3)
 
+    def test_reviewed_json_export_and_self_hosted_graph_assets(self):
+        with urlopen(self.base + "/api/export?format=json&event=" + self.event_id) as response:
+            self.assertIn("my-event-guide.json", response.headers["Content-Disposition"])
+            self.assertEqual(json.load(response)["people"], self.guide["people"])
+        for path, mime in [("/vendor/cytoscape.min.js", "text/javascript"),
+                           ("/fonts/dm-sans-normal-latin.woff2", "font/woff2"),
+                           ("/context-graph.js", "text/javascript")]:
+            with self.subTest(path=path), urlopen(self.base + path) as response:
+                self.assertIn(mime, response.headers["Content-Type"])
+                self.assertGreater(len(response.read()), 100)
+        with self.assertRaises(HTTPError):
+            urlopen(self.base + "/vendor/../../workspace.py")
+
     def test_mutations_require_local_token_and_origin(self):
         data = json.dumps({"event_id": self.event_id, "profile_url": self.guide["people"][0]["profile_url"], "status": "saved"}).encode()
         for headers in [{"Content-Type": "application/json"}, {"Content-Type": "application/json", "X-Luma-Token": self.server.application.token, "Origin": "https://unrelated.example"}]:

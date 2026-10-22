@@ -1,6 +1,6 @@
 # Luma Profile Review
 
-**Make the room feel smaller.** Turn a crowded San Francisco event into a
+**Arrive prepared. Know who to meet.** Turn a crowded San Francisco event into a
 personal guide to whom you could meet, why the connection could be useful,
 and how to start the conversation.
 
@@ -10,9 +10,14 @@ the optional MCP integration uses the official Python SDK.
 
 ![A fictional personalized event guide](docs/images/guide.jpg)
 
-The discovery redesign adds a card stack, Save / Meet / Not relevant, undo,
+The discovery redesign adds a card stack, Skip / Save / Meet, undo,
 local indexed search, sequential five-question setup, and model connections.
 See [design and implementation decisions](docs/redesign.md).
+
+Try [People for Luma](https://people-for-luma.poggiolabmit.chatgpt.site), the
+browser app. Start with five questions, add an event, then bring a reviewed
+guide from your own agent. Profiles and decisions stay in your browser; no
+private attendee data ships with the site. [Complete onboarding](docs/onboarding.md).
 
 ## The experience
 

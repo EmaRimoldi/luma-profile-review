@@ -21,4 +21,4 @@ luma-review = "luma_review.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-luma_review = ["static/*.html", "static/*.css", "static/*.js"]
+luma_review = ["static/*.html", "static/*.css", "static/*.js", "static/fonts/*", "static/vendor/*"]

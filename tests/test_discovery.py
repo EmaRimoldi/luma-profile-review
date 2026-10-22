@@ -45,7 +45,7 @@ class DiscoveryContracts(unittest.TestCase):
         self.assertEqual(self.workspace.guide(self.event)['counts'], self.guide['counts'])
         card = next(p for p in self.workspace.guide(self.event)['people'] if p['profile_url'] == url)
         self.assertEqual(card['photo_url'], 'https://example.org/observed-portrait.jpg')
-        self.assertEqual(card['contact_links']['email'], 'avery@example.org')
+        self.assertNotIn('email', card['contact_links'])
         for stage in ['structure', 'matching']:
             task = self.workspace.tasks(self.event, stage, include_reviewed=True)
             self.assertNotIn('observed-portrait.jpg', json.dumps(task))
@@ -53,8 +53,7 @@ class DiscoveryContracts(unittest.TestCase):
 
     def test_contact_services_and_active_content_are_rejected(self):
         bad = [{'photo_url':'javascript:alert(1)'}, {'contact_links': {'linkedin':'https://linkedin.com.evil.example/in/one'}},
-               {'contact_links': {'email':'one@example.org?body=spam'}}, {'contact_links': {'x':'https://example.org'}},
-               {'photo_url':17}, {'contact_links': {'email':'one@example.org\r\nBcc:two@example.org'}}]
+               {'contact_links': {'x':'https://example.org'}}, {'photo_url':17}]
         for value in bad:
             with self.subTest(value=value), self.assertRaises(ReviewError):
                 validate_presentation(value)

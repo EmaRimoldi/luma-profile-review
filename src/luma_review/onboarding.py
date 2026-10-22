@@ -3,9 +3,9 @@ from .core import ReviewError, fingerprint, text
 
 QUESTIONS = [
     {"id": "work", "label": "What are you working on?", "hint": "Your role, project, or company in a sentence."},
-    {"id": "interests", "label": "What are you interested in?", "hint": "A few professional topics, separated by commas."},
-    {"id": "looking_for", "label": "What would make this event worthwhile?", "hint": "For example: feedback, customers, collaborators, or learning."},
-    {"id": "connect_with", "label": "Who would you like to meet?", "hint": "Describe relevant backgrounds, roles, or experience."},
+    {"id": "interests", "label": "What catches your curiosity?", "hint": "A few professional topics you could talk about for hours."},
+    {"id": "looking_for", "label": "What would make the evening worthwhile?", "hint": "A collaborator, feedback, customers, or a fresh perspective."},
+    {"id": "connect_with", "label": "Who would you love to meet?", "hint": "The roles, experience, or backgrounds that matter to you."},
     {"id": "can_offer", "label": "What can you bring to the conversation?", "hint": "Your experience, a useful introduction, feedback, or a collaboration."},
 ]
 

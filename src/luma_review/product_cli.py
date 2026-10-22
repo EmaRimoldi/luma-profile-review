@@ -41,6 +41,7 @@ def add_commands(commands):
             p.add_argument("--refresh", action="store_true")
         if name == "guide":
             p.add_argument("--out", type=Path)
+            p.add_argument("--format", choices=["html", "json"], default="html")
         if name == "compare":
             p.add_argument("--labels", type=Path, required=True)
             p.add_argument("--k", type=int, default=10)
@@ -100,7 +101,7 @@ def run(args, config):
         if args.out:
             from .webapp import export_guide
             args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(export_guide(result), encoding="utf-8")
+            args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) if args.format == "json" else export_guide(result), encoding="utf-8")
             result = {"guide": str(args.out), "counts": result["counts"]}
     elif args.command == "compare":
         guide = workspace.guide(args.event)
