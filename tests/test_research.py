@@ -1,6 +1,8 @@
 """Failure, resource, and cross-backend contracts for automatic collection."""
 import json
+import copy
 import importlib.util
+import os
 import socket
 import sys
 import tempfile
@@ -64,6 +66,39 @@ class PublicReaderTests(unittest.TestCase):
                 with self.assertRaises(ReviewError):reader.read(URL)
             self.assertEqual(fetch.call_count,2)
             self.assertFalse(reader.root.exists())
+
+    def test_malformed_page_cache_is_refetched_then_reused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fetch = Mock(return_value=(BIO.encode(), 'text/plain', URL))
+            reader = PageReader(Path(directory), fetch)
+            valid = reader.read(URL)
+            path = next(reader.root.glob('*.json'))
+            for change in [
+                {'text': ''}, {'text': BIO * 100}, {'text': 'Sign in to view ' + BIO},
+                {'url': 'http://127.0.0.1/private'}, {'url': None}, {'title': None},
+                {'links': 'not a list'}, {'links': [{}]}, {'links': [{'url': 'javascript:alert(1)', 'name': 'Link'}]},
+                {'retrieved_at': None}, {'retrieved_at': 'not-a-date'},
+                {'retrieved_at': '2026-01-01T12:00:00'}, {'truncated': 'false'}, {'buttons': ['Sign in']},
+            ]:
+                with self.subTest(change=change):
+                    damaged = {**copy.deepcopy(valid), **change}
+                    path.write_text(json.dumps(damaged))
+                    before = fetch.call_count
+                    self.assertEqual(reader.read(URL)['text'], BIO.strip())
+                    self.assertEqual(fetch.call_count, before + 1)
+                    self.assertTrue(reader.read(URL)['cached'])
+                    self.assertEqual(fetch.call_count, before + 1)
+
+    def test_future_dated_cache_is_refetched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fetch = Mock(return_value=(BIO.encode(), 'text/plain', URL))
+            reader = PageReader(Path(directory), fetch)
+            reader.read(URL)
+            path = next(reader.root.glob('*.json'))
+            future = time.time() + 86400
+            os.utime(path, (future, future))
+            self.assertNotIn('cached', reader.read(URL))
+            self.assertEqual(fetch.call_count, 2)
 
     def test_dns_private_redirect_credentials_and_mapped_addresses_are_rejected(self):
         for url in ['http://127.0.0.1','http://[::1]','http://[::ffff:127.0.0.1]',

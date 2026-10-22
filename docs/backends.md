@@ -92,6 +92,10 @@ counts, backend identity, and token counts reported by the provider. It contains
 no prompts, source URLs, or credentials. Provider counts include their own system
 context and can differ greatly from prompt characters. Missing counts mean
 unavailable, not zero; failures before a response may still consume tokens.
+The local app offers Stop during both event preparation and Refresh analysis.
+Stopping keeps validated checkpoints; refreshing again processes unfinished
+work. Cancellation is not saved as a profile error, and each retry gets its own
+cancellation signal. Closing the app also requests cancellation.
 CLI Stop terminates the owned process group; network model calls stop between
 requests, bounded by their request timeout. `analyze --timeout 60` sets the
 per-request timeout. Batch cache entries still depend on each person's own

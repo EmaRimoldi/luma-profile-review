@@ -324,10 +324,14 @@ class Workspace:
                             characters = len(request['prompt'])
                         metric(stage, started, characters, len(sourced))
                     except BackendUnavailable as error:
+                        if stop and stop():
+                            return self.guide(event_id)
                         for request in sourced:
                             failure(stage, request['profile_url'], error)
                         raise
                     except ReviewError as error:
+                        if stop and stop():
+                            return self.guide(event_id)
                         for request in sourced:
                             failure(stage, request['profile_url'], error)
                 for request in batch:

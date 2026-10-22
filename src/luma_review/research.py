@@ -191,18 +191,41 @@ class PageReader:
         self.metrics = {'http_requests': 0, 'cache_hits': 0, 'download_bytes': 0,
                         'returned_characters': 0, 'http_seconds': 0.0, 'dom_reads': 0}
 
+    @staticmethod
+    def cached_page(value):
+        """Damaged cache data is a miss, never evidence or a collection failure."""
+        if (not isinstance(value, dict) or value.get('method') != 'http'
+                or not isinstance(value.get('text'), str) or not 120 <= len(value['text']) <= MAX_TEXT
+                or not isinstance(value.get('title'), str) or not 1 <= len(value['title']) <= 200
+                or type(value.get('truncated')) is not bool
+                or not isinstance(value.get('links'), list) or len(value['links']) > 40
+                or value.get('buttons') != []):
+            raise ValueError('Invalid page cache')
+        research_url(value.get('url'))
+        retrieved = datetime.fromisoformat(value['retrieved_at'])
+        if retrieved.tzinfo is None:
+            raise ValueError('Invalid cache timestamp')
+        for link in value['links']:
+            if (not isinstance(link, dict) or not isinstance(link.get('name'), str)
+                    or len(link['name']) > 100):
+                raise ValueError('Invalid cache links')
+            public_url(link.get('url'))
+        # Reapply the same access-wall check used for fresh HTTP responses.
+        extract_page(value['text'].encode(), 'text/plain', value['url'])
+        return value
+
     def read(self, url, refresh=False):
         url = research_url(url)
         path = self.root / (fingerprint({'url': url, 'version': 1}) + '.json')
-        if not refresh and path.exists() and time.time() - path.stat().st_mtime < CACHE_SECONDS:
+        if not refresh and path.exists() and 0 <= time.time() - path.stat().st_mtime < CACHE_SECONDS:
             try:
-                result = json.loads(path.read_text())
-                if not isinstance(result.get('text'), str) or result.get('method') != 'http':
-                    raise ValueError('Invalid cache')
+                if path.stat().st_size > 2 * MAX_BYTES:
+                    raise ValueError('Oversized page cache')
+                result = self.cached_page(json.loads(path.read_text()))
                 self.metrics['cache_hits'] += 1
                 self.metrics['returned_characters'] += len(result['text'])
                 return {**result, 'cached': True}
-            except (OSError, ValueError, AttributeError):
+            except (OSError, ValueError, KeyError, TypeError):
                 pass
         started = time.monotonic()
         self.metrics['http_requests'] += 1

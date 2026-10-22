@@ -26,6 +26,8 @@ class BackendUnavailable(BackendError):
 
 
 def run_cli(args: list[str], prompt: str, cwd: Path, timeout: float, cancel=None) -> str:
+    if cancel is not None and cancel.is_set():
+        raise BackendError('Stopped. Completed work is saved.')
     env = {k: v for k, v in os.environ.items() if k not in {'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'CODEX_API_KEY'}}
     try:
         if cancel is None:

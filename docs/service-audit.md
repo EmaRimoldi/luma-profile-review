@@ -32,7 +32,12 @@ Additional fixes include:
   or finishing research, and source checkpoints before analysis. MCP runs the
   entire synchronous Playwright lifetime on one worker, outside its async loop.
 - Three-profile CLI batches with per-person validation/checkpoints, reported
-  usage/timing records, cache reuse, and owned-process cancellation.
+  usage/timing records, cache reuse, and owned-process cancellation. Stop also
+  works during Refresh analysis; shutdown requests cancellation. A cancelled
+  request leaves no artificial profile errors, and retries keep completed work.
+- HTTP cache entries validate page fields, links, access walls, timestamps, and
+  size before reuse. Malformed or future-dated entries are refetched and repaired
+  instead of becoming collection failures.
 - Explicit Ollama context/output limits; relationship schemas prohibit target
   placeholders when no identified attendee is referenced by a source. Exact
   relationship targets replace prefix-based identity matching.
@@ -149,7 +154,12 @@ The installed checks completed:
   removal, Undo, reload persistence, graph node navigation, zoom, and fit.
   Attempting to load the demo into an existing workspace was correctly rejected.
 
-**95 Python tests and 10 JavaScript tests pass**. CI covers Python 3.11 and 3.13
+**103 Python tests and 10 JavaScript tests pass**. Cancellation checks use actual
+HTTP entry points, preserve a completed structure checkpoint, stop an owned CLI
+child, reject overlapping jobs, and exercise 20 consecutive Stop/restart cycles
+before a successful resume. Cache checks repair 14 kinds of valid-JSON corruption
+and future-dated files, then verify that repaired pages are reused.
+CI covers Python 3.11 and 3.13
 on Linux and installs the non-editable package outside the checkout to check its
 bundled fonts, graph code, and standalone guide. The shared skill validator passes.
 The sandbox is configuration/data isolation on the same macOS account, not an
