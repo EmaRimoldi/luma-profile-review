@@ -235,3 +235,27 @@ class BatchAndStateTests(unittest.TestCase):
             self.assertEqual(path.read_text(),'{broken')
             path=workspace.root/'settings.json';path.write_text('{"backend":"unsupported"}')
             with self.assertRaisesRegex(ReviewError,'supported'):read_settings(workspace)
+
+
+class MCPBrowserThreadTests(unittest.IsolatedAsyncioTestCase):
+    async def test_collection_browser_lifetime_stays_off_the_async_server_thread(self):
+        import asyncio
+        from types import SimpleNamespace
+        from luma_review.mcp_server import create_server
+        owner=threading.get_ident()
+        observed=[]
+        class Browser:
+            def __init__(self,root):
+                self.thread=threading.get_ident();observed.append(self.thread)
+                self.reader=SimpleNamespace(metrics={'http_requests':0})
+            def close(self):
+                self.assert_owner();observed.append('closed')
+            def assert_owner(self):
+                assert threading.get_ident()==self.thread and self.thread!=owner
+        def collect(workspace,event,browser,limit,stop):
+            browser.assert_owner();assert not stop();return [URL]
+        with tempfile.TemporaryDirectory() as directory,patch('luma_review.managed_browser.ResearchBrowser',Browser),patch('luma_review.collection.collect_event',collect):
+            server=create_server(Path(directory))
+            await server.call_tool('collect_event_profiles',{'event_id':'synthetic','limit':1})
+        self.assertNotEqual(observed[0],owner)
+        self.assertEqual(observed[-1],'closed')
