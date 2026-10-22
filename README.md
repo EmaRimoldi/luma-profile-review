@@ -6,7 +6,8 @@ and how to start the conversation.
 
 An open-source, local application with a CLI, an MCP server, and a shared
 agent skill. MIT licensed. Python 3.11+. The core has no Python dependencies;
-the optional MCP integration uses the official Python SDK.
+the optional MCP integration uses the official Python SDK. The `[app]` extra
+adds the managed research browser.
 
 ![A fictional personalized event guide](docs/images/guide.jpg)
 
@@ -14,10 +15,15 @@ The discovery redesign adds a card stack, Skip / Save / Meet, undo,
 local indexed search, sequential five-question setup, and model connections.
 See [design and implementation decisions](docs/redesign.md).
 
-Try [People for Luma](https://people-for-luma.poggiolabmit.chatgpt.site), the
-browser app. Start with five questions, add an event, then bring a reviewed
-guide from your own agent. Profiles and decisions stay in your browser; no
-private attendee data ships with the site. [Complete onboarding](docs/onboarding.md).
+Start with [People for Luma](https://people-for-luma.poggiolabmit.chatgpt.site), or
+launch the complete local app. **Connect Codex → Connect Luma → Prepare guide**:
+the agent works inside the platform, with live progress, Stop, and automatic
+results. There is no task copying or chat handoff. The public site carries your
+profile and event directly into the running local app. [Complete onboarding](docs/onboarding.md).
+
+```sh
+uvx --python 3.13 --from 'luma-profile-review[app] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide' luma-review serve --port 8765
+```
 
 ## The experience
 
@@ -25,10 +31,10 @@ private attendee data ships with the site. [Complete onboarding](docs/onboarding
    goals, the people you hope to meet, and what you can offer. They produce
    an editable professional profile and Markdown matching criteria. Only
    requirements you explicitly specify become hard filters.
-2. **Bring an event.** Add its Luma URL. A connected browser-capable agent
+2. **Bring an event.** Add its Luma URL. The built-in Codex agent
    collects the accessible guest list in resumable batches, deduplicating
    people by their profile URLs.
-3. **Read relevant sources.** The agent follows Luma profiles and linked
+3. **Read relevant sources.** The app’s agent follows Luma profiles and linked
    LinkedIn, company, GitHub, and personal pages when useful. Read excerpts,
    source URLs, access dates, and access limitations are recorded separately
    from links that have merely been discovered.
@@ -41,8 +47,8 @@ private attendee data ships with the site. [Complete onboarding](docs/onboarding
    automatically becomes a claim that two people know one another.
 
 The current release is an alpha. Authenticated collection is orchestrated by
-your agent's browser tools; the Python CLI is not an unattended LinkedIn or
-Luma scraper. If your agent has no browser, import a collected profile snapshot.
+the built-in research browser when you use the `[app]` extra. Access restrictions
+and manual authentication remain visible; collection does not bypass them.
 
 ## Start locally
 
@@ -50,18 +56,18 @@ With [uv](https://docs.astral.sh/uv/), one command runs the current review branc
 in an isolated environment (no manual virtualenv or Node installation):
 
 ```sh
-uvx --python 3.13 --from 'luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide' luma-review serve --workspace ~/.luma-profile-review
+uvx --python 3.13 --from 'luma-profile-review[app] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide' luma-review serve --workspace ~/.luma-profile-review
 ```
 
 Or from a checkout:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[mcp]"
+.venv/bin/python -m pip install -e ".[app,mcp]"
 .venv/bin/luma-review serve --workspace data/my-workspace
 ```
 
-Open the printed loopback URL, sign in on Luma in your agent’s browser, and
+Open the printed loopback URL, connect Luma in the app’s research browser, and
 answer the five questions. Choose your model connection during setup. The app and
 agent integration share this workspace. Model requests use the selected
 backend; no remote application account or hosted database is needed.
@@ -80,7 +86,7 @@ To use the CLI without installation, replace `luma-review` with
 `python3 run.py`. MCP commands still need the optional MCP dependency in that
 same interpreter.
 
-## Connect your agent
+## Advanced: connect an external agent
 
 The primary integration targets are **Codex, Claude Code, Cursor, GitHub
 Copilot in VS Code, and OpenCode**. Claude Desktop configuration is also

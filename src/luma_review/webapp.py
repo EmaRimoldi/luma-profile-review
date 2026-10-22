@@ -48,6 +48,41 @@ class Application:
         self.api_keys = {}
         self.guide_cache = {}
         self.guide_lock = threading.Lock()
+        self.agent = None
+        self.agent_lock = threading.Lock()
+
+    def agent_runner(self):
+        with self.agent_lock:
+            if self.agent is None:
+                from .agent import AgentRunner
+                def update(**values):
+                    with self.job_lock:
+                        self.job.update(values)
+                self.agent = AgentRunner(self.workspace, update)
+            return self.agent
+
+    def agent_state(self):
+        if self.agent:
+            return self.agent.snapshot()
+        from .managed_browser import ResearchBrowser
+        return {"installed": bool(shutil.which("codex")), "connected": False, "busy": False,
+                "browser_available": ResearchBrowser.available(), "luma_connected": False,
+                "message": "Connect Codex to prepare your guide here."}
+
+    def agent_action(self, data):
+        action = data.get("action")
+        if action == "prepare":
+            with self.job_lock:
+                if self.job.get("running"):
+                    raise ReviewError("A guide is already being prepared.")
+                self.job = {"running": True, "stage": "Connecting your agent", "current": 0, "total": data.get("limit", 10)}
+            try:
+                return self.agent_runner().action(action, data.get("event_id"), data.get("limit", 10))
+            except Exception:
+                with self.job_lock:
+                    self.job["running"] = False
+                raise
+        return self.agent_runner().action(action)
 
     def connection_state(self):
         return {"settings": read_settings(self.workspace),
@@ -99,7 +134,7 @@ class Application:
             raise ReviewError("Collect or import some attendee profiles first")
         provider = make_backend(backend, model or None, api_key=self.api_keys.get(backend), work_dir=self.workspace.root / "work/model-runs")
         with self.job_lock:
-            if self.job["running"]:
+            if self.job["running"] or (self.agent and self.agent.snapshot()["busy"]):
                 raise ReviewError("An analysis is already running")
             self.job = {"running": True, "event_id": event_id, "backend": backend}
         def work():
@@ -159,9 +194,11 @@ def make_server(workspace: Workspace, port=8765):
                 elif parsed.path == "/api/state":
                     with app.job_lock:
                         job = dict(app.job)
-                    self.send({**workspace.state(), "job": job, **app.connection_state()})
+                    self.send({**workspace.state(), "job": job, "agent": app.agent_state(), **app.connection_state()})
                 elif parsed.path == "/api/guide":
                     self.send(app.guide(query.get("event", [""])[0]))
+                elif parsed.path == "/api/agent":
+                    self.send(app.agent_state())
                 elif parsed.path == "/api/integration":
                     self.send(integration_config(query.get("agent", ["codex"])[0], workspace.root))
                 elif parsed.path == "/api/export":
@@ -191,7 +228,24 @@ def make_server(workspace: Workspace, port=8765):
                 if not isinstance(data, dict):
                     raise ReviewError("Expected a JSON object")
                 route = urlsplit(self.path).path
-                if route == "/api/onboard":
+                if route == "/api/agent":
+                    result = app.agent_action(data)
+                elif route == "/api/handoff":
+                    from .onboarding import make_brief
+                    from .core import parse_criteria, public_url
+                    make_brief(data["brief"])
+                    if data.get("criteria_markdown"):
+                        parse_criteria(data["criteria_markdown"])
+                    if data.get("event"):
+                        incoming = urlsplit(public_url(data["event"]["url"]))
+                        if incoming.hostname != "luma.com" or not incoming.path or incoming.path.startswith("/user/"):
+                            raise ReviewError("Enter a Luma event URL")
+                    workspace.save_brief(data["brief"])
+                    if data.get("criteria_markdown"):
+                        workspace.save_criteria(data["criteria_markdown"])
+                    event = data.get("event")
+                    result = workspace.create_event(event["url"], event.get("name") or "My event") if event else {"saved": True}
+                elif route == "/api/onboard":
                     result = workspace.save_brief(data)
                 elif route == "/api/settings":
                     result = app.update_settings(data)
@@ -225,7 +279,12 @@ def make_server(workspace: Workspace, port=8765):
         def log_message(self, *args):
             # URLs can contain private event identifiers. Do not log request paths.
             pass
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    class LocalServer(ThreadingHTTPServer):
+        def server_close(self):
+            if app.agent:
+                app.agent.close()
+            super().server_close()
+    server = LocalServer(("127.0.0.1", port), Handler)
     server.application = app
     return server
 
