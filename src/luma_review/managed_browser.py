@@ -88,7 +88,7 @@ class ResearchBrowser:
 
     def click(self, name):
         # Only reading/navigation controls, never submit, RSVP, contact, or account actions.
-        if not isinstance(name, str) or not re.search(r'guest|attendee|people|view|see|show|load|next|back|close|more|\d', name, re.I) or re.search(r'register|RSVP|join|buy|pay|send|invite|delete|sign|log|subscribe|follow|accept|submit', name, re.I):
+        if not isinstance(name, str) or not re.search(r'guest|attendee|people|view|see|show|load|next|back|close|more|ospiti|partecipanti|vedi|mostra|carica|avanti|indietro|chiudi|altro|altri|\d', name, re.I) or re.search(r'register|RSVP|join|buy|pay|send|invite|delete|sign|log|subscribe|follow|accept|submit|registr|iscriv|invia|acquista|paga|elimina|acced|esci|accett|segui|invit', name, re.I):
             raise ReviewError('This control requires your action in the research browser.')
         self.page.get_by_role('button', name=name, exact=True).click()
         return self.read()

@@ -256,3 +256,5 @@ When the batch is reviewed, stop and report coverage and any limitations. My pro
         self.stop_requested.set()
         self.closed = True
         self.commands.put(('close', None, 0))
+        if threading.current_thread() is not self.worker:
+            self.worker.join(timeout=8)

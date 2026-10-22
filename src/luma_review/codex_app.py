@@ -2,6 +2,7 @@
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -20,24 +21,41 @@ class CodexApp:
                 '-c', 'features.shell_tool=false', '-c', 'features.apply_patch_freeform=false',
                 '-c', 'web_search="disabled"', '-c', 'mcp_servers={}', '-c', 'features.apps=false']
         env = {k: v for k, v in os.environ.items() if k not in {'OPENAI_API_KEY', 'ANTHROPIC_API_KEY'}}
-        self.process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=subprocess.DEVNULL, text=True, cwd=cwd, env=env)
-        self.messages, self.next_id, self.notify = queue.Queue(), 0, notify
+        self.args, self.env, self.cwd, self.notify = args, env, cwd, notify
+        self._start()
+        config = self.request('config/read', {'includeLayers': False}).get('config', {})
+        servers = config.get('mcp_servers') or {}
+        if servers:
+            self.close()
+            for name in servers:
+                if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
+                    raise ReviewError('An external MCP server name cannot be isolated safely. Rename it using letters, digits, hyphens or underscores.')
+                self.args += ['-c', 'mcp_servers.' + name + '.enabled=false']
+            self._start()
+            config = self.request('config/read', {'includeLayers': False}).get('config', {})
+            if any(v.get('enabled', True) for v in (config.get('mcp_servers') or {}).values()):
+                self.close()
+                raise ReviewError('Could not isolate the in-app research tools. Update Codex CLI and retry.')
+
+    def _start(self):
+        self.process = subprocess.Popen(self.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                        stderr=subprocess.DEVNULL, text=True, cwd=self.cwd, env=self.env)
+        self.messages, self.next_id = queue.Queue(), 0
         self.tool = None
-        threading.Thread(target=self._read, daemon=True).start()
+        threading.Thread(target=self._read, args=(self.process, self.messages), daemon=True).start()
         self.request('initialize', {'clientInfo': {'name': 'people_for_luma', 'title': 'People for Luma', 'version': '0.3.0'},
                                     'capabilities': {'experimentalApi': True}})
         self.send({'method': 'initialized', 'params': {}})
 
-    def _read(self):
+    def _read(self, process, messages):
         try:
-            for line in self.process.stdout:
+            for line in process.stdout:
                 try:
-                    self.messages.put(json.loads(line))
+                    messages.put(json.loads(line))
                 except ValueError:
                     continue
         finally:
-            self.messages.put(None)
+            messages.put(None)
 
     def send(self, value):
         if self.process.poll() is not None:
