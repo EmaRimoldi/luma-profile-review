@@ -1,5 +1,6 @@
 """Failure, resource, and cross-backend contracts for automatic collection."""
 import json
+import importlib.util
 import socket
 import sys
 import tempfile
@@ -237,6 +238,7 @@ class BatchAndStateTests(unittest.TestCase):
             with self.assertRaisesRegex(ReviewError,'supported'):read_settings(workspace)
 
 
+@unittest.skipUnless(importlib.util.find_spec('mcp'), 'MCP extra is not installed')
 class MCPBrowserThreadTests(unittest.IsolatedAsyncioTestCase):
     async def test_collection_browser_lifetime_stays_off_the_async_server_thread(self):
         import asyncio
@@ -274,3 +276,19 @@ class ProviderOutageTests(unittest.TestCase):
             self.assertEqual(provider.generate.call_count,1)
             self.assertEqual(len(workspace.read(workspace.directory(event)/'errors.json')),1)
             self.assertEqual(len(workspace.dataset(event)['people']),3)
+
+
+class ReferencedIdentityCacheTests(unittest.TestCase):
+    def test_adding_a_referenced_attendee_invalidates_only_the_dependent_profile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace=Workspace(Path(directory));workspace.save_brief(DEMO_ANSWERS)
+            event=workspace.create_event('https://luma.com/cache-identity-test')['event_id']
+            workspace.capture_attendees(event,[{'name':'Reader','profile_url':URL}])
+            target='https://luma.com/user/referred-person'
+            workspace.capture_sources(event,URL,[{'url':URL,'title':'Synthetic source','text':'I worked with '+target}])
+            tasks=workspace.tasks(event,'structure')
+            workspace.submit(event,'structure',tasks['request_hash'],{URL:{'summary':'Synthetic','facts':[],'relationships':[]}})
+            workspace.capture_attendees(event,[{'name':'Unrelated','profile_url':'https://luma.com/user/unrelated'}])
+            self.assertNotIn(URL,[r['profile_url'] for r in workspace.tasks(event,'structure')['requests']])
+            workspace.capture_attendees(event,[{'name':'Referred person','profile_url':target}])
+            self.assertIn(URL,[r['profile_url'] for r in workspace.tasks(event,'structure')['requests']])

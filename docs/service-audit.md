@@ -28,7 +28,8 @@ Additional fixes include:
   connections, private-address blocking, readable text extraction, and corrupt
   cache recovery. No cookies or model credentials enter public HTTP requests.
 - A cross-process browser-profile lease, automatic release after checking Luma
-  or finishing research, and source checkpoints before analysis.
+  or finishing research, and source checkpoints before analysis. MCP runs the
+  entire synchronous Playwright lifetime on one worker, outside its async loop.
 - Three-profile CLI batches with per-person validation/checkpoints, reported
   usage/timing records, cache reuse, and owned-process cancellation.
 - Explicit Ollama context/output limits; relationship schemas prohibit target
@@ -37,6 +38,11 @@ Additional fixes include:
 - Invalid settings/model/timeouts/ports fail clearly; damaged JSON is reported
   without overwriting it. Connection-check failures cannot clear an unrelated
   running analysis job. Cache hashes include the prompt-contract version.
+- Provider/account/transport outages stop after one failed batch, retaining
+  retryable checkpoints. A nonexistent local model was tested against the actual
+  installed service: one HTTP 404, not a request for every remaining profile.
+- Referenced-identity cache dependencies update when a cited attendee is newly
+  collected; unrelated roster additions do not rerun existing assessments.
 - Public install instructions use `main`, distinguish Git distribution from a
   registry package, and explain backend selection, sign-in, recovery, and limits.
 
@@ -46,7 +52,7 @@ Additional fixes include:
 | --- | --- | --- |
 | Codex CLI 0.144.5 | App connection, model catalog, batched structure/matching, MCP | Real subscription-backed inference on public fictional inputs; all three profiles reviewed; positive, explicit negative, and missing-source cases checked |
 | Claude Code 2.1.205 | App/CLI analysis and shared collection; MCP | Structured-output transport and complete app path tested with fixtures; actual CLI reports no authenticated account here, so live inference is unverified |
-| Ollama | App/CLI/MCP analysis and shared collection | Real local calls with `llama3.2:1b` and `qwen2.5:3b`; weak-model failures and quality limitations are retained below |
+| Ollama | App/CLI/MCP analysis and shared collection | Real local calls with `llama3.2:1b` and `qwen2.5:3b`; the installed Qwen pipeline/export/cache passed, but it failed the explicit-negative quality check |
 | Gemini CLI 0.65.0 | Generated stdio MCP configuration; host-model inference contract | Real client connects to the server after project trust; no authenticated Gemini inference account used |
 | Copilot CLI 1.0.102 | Generated local MCP configuration | Actual CLI parses/lists the server; authenticated inference and tool execution are unverified |
 | Cursor, VS Code Copilot, OpenCode, Zed, Claude Desktop | Host-specific MCP configuration plus shared tools | Configuration contract tests and official documentation; no manual end-to-end client certification |
@@ -78,6 +84,10 @@ review/recommendation counts. Input tokens decreased **48.6%** and elapsed time
 can change absolute counts. Provider-reported tokens include CLI system context;
 prompt character counts are not token counts.
 
+A separate search stress run indexed **10,000 synthetic profiles** in **35.6 ms**;
+100 queries had a **2.33 ms p95** (5,000 matches per query). This measures the
+existing local search index, not LLM matching latency.
+
 The synthetic HTTP extraction benchmark reduced payload characters **98.18%**
 and took about **4.6 ms of local CPU per page** over 100 iterations. This compares
 the previous tool response shape with a bounded excerpt, not real vision-token
@@ -85,10 +95,12 @@ costs. A public professional homepage read took **0.2164 s cold / 0.0002 s from
 cache**, transferred 11,471 bytes, and started **zero browsers**. These are local
 observations, not a claim that every site supports HTTP extraction.
 
-The 1B Ollama model initially loaded a 131,072-token context and used approximately
-14 GB. The adapter now explicitly requests 16,384 context / 4,096 output tokens.
-A real `qwen2.5:3b` run used about 3.1 GB with that context. Different model sizes
-prevent treating that pair as a controlled memory-reduction experiment.
+The 1B Ollama model initially loaded a 131,072-token context and reported about
+**14 GB**. Loading the **same `llama3.2:1b` model with the adapter’s 16,384-token
+context** reported **2,974,197,760 bytes (about 2.97 GB)** through `/api/ps`.
+The adapter also caps output at 4,096 tokens. A real `qwen2.5:3b` run used about
+3.1 GB with that context. These are model-process memory observations, not
+hosted-model compute measurements or proof of matching quality.
 
 Reproduce with the scripts in the public repository:
 
@@ -106,8 +118,41 @@ not zero. Hosted model CPU/GPU usage is not exposed and was not measured.
 The original public README command was run with a fresh HOME, isolated uv
 cache/Python location, no provider keys, no copied browser session, and an empty
 workspace. Installation and five-question onboarding succeeded. Selecting Claude
-reproduced the forced-Codex preparation path. The fixed distribution is tested
-again from its public review branch; final results are added after that check.
+reproduced the forced-Codex preparation path. The fixed public branch was cloned
+into a second fresh HOME and installed
+**non-editably** with `.[app,mcp]`. Imports were verified to resolve to that venv's
+`site-packages`, not the developer checkout. The UI process had **no Codex or
+Claude executable on PATH**.
+
+The installed checks completed:
+
+- First-time Chromium download, opening Luma without Codex, signed-out checking
+  and recovery, all five onboarding questions, Ollama server/model configuration,
+  adding an event, and preparing with the chosen backend retained.
+- Installed-package MCP startup, 13-tool discovery, all nine generated config
+  envelopes, blocked local URLs, and actual Gemini connection / Copilot config
+  parsing with the installed venv interpreter. An initial sync/async Playwright
+  failure was fixed, reinstalled from GitHub, and retested. The headless MCP run
+  then reached Luma's explicit sign-in/registration gate; no roster was invented.
+- CLI onboarding, public fictional snapshot import, live structure/matching,
+  portable HTML export, and a second run making zero model calls. The separate
+  Codex run used the existing official CLI login with fictional inputs; no
+  credential file or browser session was copied into the sandbox. It reviewed
+  three profiles, recommended one, passed all three semantic checks, and took
+  25.478 seconds / two requests in that installed run.
+- Local Qwen completed the same three-profile workflow in 56.967 seconds / four
+  requests and reused the cache on repeat. It recognized the positive and missing
+  source cases, but returned unknown for an explicit negative. The smoke script
+  exited unsuccessfully on that quality gate, despite valid output/citations.
+- A separate, documented fictional demo workspace verified Save and Meet stack
+  removal, Undo, reload persistence, graph node navigation, zoom, and fit.
+  Attempting to load the demo into an existing workspace was correctly rejected.
+
+**94 Python tests and 10 JavaScript tests pass**. CI covers Python 3.11 and 3.13
+on Linux and installs the non-editable package outside the checkout to check its
+bundled fonts, graph code, and standalone guide. The shared skill validator passes.
+The sandbox is configuration/data isolation on the same macOS account, not an
+independent human or a container. Live gated guest collection remains unverified.
 
 Automated acceptance tests use synthetic guest dialogs and sources to exercise
 collection → structure → matching → guide, backend selection, partial batches,

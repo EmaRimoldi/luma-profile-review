@@ -43,8 +43,9 @@ as synthetic, rather than represented as real model inference.
 
 ## Failure and cache semantics
 
-Backends have a per-person timeout, defaulting to 180 seconds. Requests run
-sequentially, with a checkpoint after each profile. Provider failures and invalid
+Backends have a per-model-request timeout, defaulting to 180 seconds. Requests run
+sequentially, with a checkpoint after each validated profile. CLI batches can
+contain up to three profiles. Provider failures and invalid
 assessments remain in `results.json` and in the report. A later run reuses only
 successful validated cache entries and attempts failed profiles again.
 
@@ -95,3 +96,12 @@ CLI Stop terminates the owned process group; network model calls stop between
 requests, bounded by their request timeout. `analyze --timeout 60` sets the
 per-request timeout. Batch cache entries still depend on each person's own
 sources, criteria, backend, and model, so a repeat run makes no model calls.
+
+Account, transport, executable, and timeout failures stop the current run after
+one failed batch. Invalid individual assessments remain retryable without
+discarding other validated results. The small local models in the audit are
+transport tests, not recommended or certified matching models; run the public
+customer smoke and check its semantic quality gates before relying on a model.
+
+Current structured-output references: [OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs),
+[Anthropic](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).

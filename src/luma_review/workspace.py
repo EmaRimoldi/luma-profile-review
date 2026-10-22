@@ -200,8 +200,12 @@ class Workspace:
         data = {**data, "people": [model_profile(p) for p in data["people"]]}
         return fingerprint({"stage": stage, "data": data, "criteria": criteria.sha256, "brief": brief["id"], "structures": structures, "version": PROMPT_VERSION})
 
-    def _person_hash(self, person, brief, criteria, stage="structure", structures=None):
-        base = fingerprint({"person": model_profile(person), "brief": brief["id"], "criteria": criteria.sha256, 'version': PROMPT_VERSION})
+    def _person_hash(self, person, brief, criteria, stage="structure", structures=None, known_people=None):
+        inputs = {"person": model_profile(person), "brief": brief["id"], "criteria": criteria.sha256, 'version': PROMPT_VERSION}
+        referenced = {url: known_people[url] for url in referenced_urls(person) if url in (known_people or {})}
+        if referenced:
+            inputs['referenced_people'] = referenced
+        base = fingerprint(inputs)
         if stage == "matching":
             record = (structures or {}).get(person["profile_url"], {})
             structured = record.get("result") if record.get("input_hash") == base else None
@@ -214,9 +218,10 @@ class Workspace:
         data, criteria, brief = self.dataset(event_id), self.criteria(), self.brief()
         records = self.read(self.directory(event_id) / f"{stage}.json", {})
         structures = self.read(self.directory(event_id) / "structure.json", {})
+        known_people = {p['profile_url']: p['name'] for p in data['people']}
         requests = []
         for person in data["people"]:
-            key = self._person_hash(person, brief, criteria, stage, structures)
+            key = self._person_hash(person, brief, criteria, stage, structures, known_people)
             record = records.get(person["profile_url"], {})
             if not include_reviewed and record.get("input_hash") == key:
                 continue
@@ -225,7 +230,7 @@ class Workspace:
             else:
                 enriched = copy.deepcopy(person)
                 record_structure = structures.get(person["profile_url"], {})
-                if record_structure.get("input_hash") == self._person_hash(person, brief, criteria):
+                if record_structure.get("input_hash") == self._person_hash(person, brief, criteria, known_people=known_people):
                     enriched["professional_profile"] = record_structure["result"]
                 prompt = make_prompt(criteria, enriched)
             requests.append({"profile_url": person["profile_url"], "input_hash": key, "prompt": prompt})
@@ -260,7 +265,7 @@ class Workspace:
                     validate_structure(result, person, set(people))
                 else:
                     validate_assessment(result, criteria, person)
-                records[url] = {"input_hash": self._person_hash(person, brief, criteria, stage, structures),
+                records[url] = {"input_hash": self._person_hash(person, brief, criteria, stage, structures, {u: p['name'] for u, p in people.items()}),
                                 "result": result, "backend": backend or {"backend": "host"}}
             write_json(self.directory(event_id) / f"{stage}.json", records)
             errors_path = self.directory(event_id) / "errors.json"
@@ -349,15 +354,16 @@ class Workspace:
         assessments = self.read(directory / "matching.json", {})
         feedback = self.read(directory / "feedback.json", {})
         valid_structures, reviewed, cards = {}, [], []
+        known_people = {p['profile_url']: p['name'] for p in data['people']}
         for person in data["people"]:
             url = person["profile_url"]
-            key = self._person_hash(person, brief, criteria)
+            key = self._person_hash(person, brief, criteria, known_people=known_people)
             structure = structures.get(url, {})
             if structure.get("input_hash") == key:
                 validate_structure(structure["result"], person, {p["profile_url"] for p in data["people"]})
                 valid_structures[url] = structure["result"]
             record = assessments.get(url, {})
-            if record.get("input_hash") != self._person_hash(person, brief, criteria, "matching", structures):
+            if record.get("input_hash") != self._person_hash(person, brief, criteria, "matching", structures, known_people):
                 continue
             result = validate_assessment(record["result"], criteria, person)
             score = aggregate(result, criteria)

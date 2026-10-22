@@ -35,6 +35,8 @@ uvx --python 3.13 --from 'luma-profile-review[app] @ git+https://github.com/EmaR
 
 Open **[localhost:8765](http://127.0.0.1:8765/)** and keep the terminal running.
 This installs the public `main` branch; no source checkout is needed.
+For the [0.4 review build](docs/service-audit.md), replace `@main` with
+`@feature/agent-portability-audit`.
 
 > **Just looking?** Choose **Explore the fictional demo** on the
 > [website](https://people-for-luma.poggiolabmit.chatgpt.site).
