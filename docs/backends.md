@@ -54,3 +54,17 @@ may be changed externally: use `--refresh` in that case. There is no automatic
 cross-provider failover, hidden paid API adapter, or retry storm. Backend error
 messages omit raw CLI stdout/stderr, which can contain source text or account
 identifiers. Use the provider's own CLI to investigate authentication problems.
+
+## Explicit API connections
+
+The local Connections panel supports OpenAI and Anthropic API keys. Choose a
+model ID available to your account. Keys entered in the panel are held in server
+memory only, cleared by Forget session key or process exit, and never returned
+in API responses. Environment variables `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+also work. Environment keys remain available until removed from the environment.
+CLI `analyze --backend openai --model MODEL_ID` (or `anthropic`) uses the relevant
+environment key. MCP API mode also uses environment keys; it does not share
+a separate UI server process's in-memory key. API charges are separate from
+subscriptions. No provider fallback occurs automatically. Structured-output
+contracts are covered by mocked transport tests; live API accounts were not
+used during the redesign.

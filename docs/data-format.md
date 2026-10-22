@@ -11,6 +11,43 @@ The report score is derived only from the table. Italian `Stato: attivo`,
 
 The SHA-256 of the UTF-8 Markdown text identifies the criteria version.
 
+## Personal workspaces and agent tasks
+
+The product UI, CLI, and MCP server share one local workspace. It contains
+`brief.json`, editable `criteria.md`, and an `events/<event-id>/` directory with
+profile snapshots, validated structures, criterion assessments, errors, feedback,
+and the latest guide projection. By default this is inside ignored `data/`.
+Event IDs are hashes of canonical event URLs; arbitrary filesystem paths are
+not accepted as event IDs.
+
+Onboarding records the five self-reported fields `work`, `interests`,
+`looking_for`, `connect_with`, and `can_offer`, plus optional explicit
+`must_haves`. The profile is identified by a content hash. Generated criteria
+remain editable. Free-form interests are not inferred from unrelated user data.
+
+Attendee records can also contain `collection_complete` and `source_attempts`
+with inaccessible URLs and reasons. `record_profile_sources` gives each read
+page a stable source ID. Sources may contain observed `links` identifying
+other attendee profiles; these are necessary to ground explicit relationships.
+
+`inference_tasks` returns a stage (`structure` or `matching`), a schema,
+requests keyed by profile URL, and `request_hash`. Echo that hash when submitting
+responses. It identifies the current profile/criteria/brief snapshot and, for
+matching, the structured profile state. A changed input rejects stale batches.
+
+Structured professional profiles have `summary`, `facts`, and `relationships`.
+Each fact contains `kind`, `value`, and exact source evidence. Kinds are role,
+organization, interest, skill, project, seeking, or offers. Explicit relationship
+records contain a known `target_profile_url`, kind, and evidence. They must
+reference an identity present in their cited source text or recorded links.
+Source presence does not independently verify the truth of a relationship.
+
+The guide contains per-person why-to-meet reasons, uncertainties, a grounded
+conversation starter, source excerpts, conclusive criterion coverage, local
+feedback, backend provenance, and a graph. Graph edges reference their source
+URL, person URL, quote, and source ID; onboarding interests are labeled as
+self-reported. Shared-context groups never imply a personal acquaintance.
+
 ## Collected profiles
 
 See [examples/profiles.json](../examples/profiles.json) for a complete synthetic
@@ -92,3 +129,17 @@ Unknown/conflicting preference weights become uncertain points, not confirmed
 negative evidence. Coverage is the count of yes/no outcomes divided by the
 number of criteria. Reports are ordered by status, confirmed preference points,
 then name. It is a relevance ranking, not an estimate of a person's worth.
+
+## Card presentation metadata
+
+Each attendee may carry an observed `photo_url` (HTTP(S)) and a `contact_links`
+object with `linkedin` and/or `x` (HTTP(S)
+profile URLs on their respective services). `record_attendees` accepts these
+optional fields; repeat a known identity to update presentation metadata.
+Only save values actually observed on the person's published profile. Missing
+fields produce initials / unavailable contact icons. Discovered LinkedIn and X
+outbound links are also displayed without claiming that the page was read.
+Photos and contact fields are excluded from model prompts and inference hashes.
+
+Feedback statuses: `saved`, `meet` (a private plan), `met` (already met),
+`not_relevant`, and `none` (return to discovery / undo). No action sends a message.

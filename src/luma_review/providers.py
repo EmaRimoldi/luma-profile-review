@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from .core import ReviewError, SYSTEM_PROMPT, public_url
 
@@ -136,12 +137,69 @@ class HostBackend:
         return self.responses[profile_url]
 
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # A provider key must never be forwarded to a redirect destination.
+        return None
+
+
+class APIBackend:
+    """Explicit, separately billed API mode. No SDK dependency or token extraction."""
+    def __init__(self, name, model, api_key, timeout):
+        if not model:
+            raise BackendError("Enter a model ID supported by your API account")
+        if not api_key:
+            raise BackendError("Add an API key in Connections or set the provider environment variable")
+        self.name, self.model, self._api_key, self.timeout = name, model, api_key, timeout
+
+    @property
+    def identity(self):
+        return {"backend": self.name, "model": self.model}
+
+    def generate(self, prompt, schema, profile_url):
+        headers = {"Content-Type": "application/json"}
+        if self.name == "openai":
+            url = "https://api.openai.com/v1/responses"
+            headers["Authorization"] = "Bearer " + self._api_key
+            payload = {"model": self.model, "store": False, "instructions": SYSTEM_PROMPT,
+                       "input": prompt, "max_output_tokens": 8192,
+                       "text": {"format": {"type": "json_schema", "name": "professional_profile",
+                                            "strict": True, "schema": schema}}}
+        else:
+            url = "https://api.anthropic.com/v1/messages"
+            headers.update({"x-api-key": self._api_key, "anthropic-version": "2023-06-01"})
+            payload = {"model": self.model, "max_tokens": 8192, "system": SYSTEM_PROMPT,
+                       "messages": [{"role": "user", "content": prompt}],
+                       "output_config": {"format": {"type": "json_schema", "schema": schema}}}
+        request = Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
+        try:
+            with build_opener(NoRedirect()).open(request, timeout=self.timeout) as response:
+                envelope = decode_json(response.read().decode())
+        except (URLError, TimeoutError, OSError, ValueError):
+            # Never surface provider bodies, request headers, keys, or excerpts.
+            raise BackendError("API request failed. Check your key, model access, balance, and provider limits; no fallback was used") from None
+        if self.name == "openai":
+            if envelope.get("status") != "completed":
+                raise BackendError("API response was incomplete or refused")
+            content = [block for item in envelope.get("output", []) if item.get("type") == "message"
+                       for block in item.get("content", [])]
+            output = "".join(block.get("text", "") for block in content if block.get("type") == "output_text")
+        else:
+            if envelope.get("stop_reason") != "end_turn":
+                raise BackendError("API response was incomplete or refused")
+            output = "".join(block.get("text", "") for block in envelope.get("content", []) if block.get("type") == "text")
+        return decode_json(output)
+
+
 def make_backend(name: str, model=None, *, work_dir=Path("work/model-runs"), timeout=180,
-                 base_url="http://127.0.0.1:11434", responses=None):
+                 base_url="http://127.0.0.1:11434", responses=None, api_key=None):
     if name in {"codex", "claude"}:
         return CLIBackend(name, model, work_dir, timeout)
     if name == "ollama":
         return OllamaBackend(model, base_url, timeout)
+    if name in {"openai", "anthropic"}:
+        key = api_key or os.environ.get("OPENAI_API_KEY" if name == "openai" else "ANTHROPIC_API_KEY")
+        return APIBackend(name, model, key, timeout)
     if name == "host":
         if responses is None:
             raise BackendError("host needs --responses <responses.json>; see export-prompts")
