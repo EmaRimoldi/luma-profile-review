@@ -86,7 +86,7 @@
   function questionPlaceholder(id){return {work:'I’m building…',interests:'AI infrastructure, design, climate…',looking_for:'A collaborator, practical feedback, a new perspective…',connect_with:'People building or researching…',can_offer:'Experience with…, an introduction, thoughtful feedback…'}[id]||'';}
   function bindSetup() {
     async function advance(luma){try{await api('/api/settings',{luma,setup_complete:false});state.settings.luma=luma;step=1;view='setup';render();}catch(e){toast(e.message);}}
-    bind('setup-luma','click',()=>agentModal().catch(e=>toast(e.message)));bind('luma-continue','click',()=>advance('browser_handoff'));
+    bind('setup-luma','click',()=>agentModal(true).catch(e=>toast(e.message)));bind('luma-continue','click',()=>advance('browser_handoff'));
     bind('try-demo','click',async()=>{try{const result=await api('/api/demo',{});eventId=result.event_id;view='discover';await refresh();}catch(e){toast(e.message);}});
     bind('setup-back','click',()=>{answers[state.questions[step-1].id]=document.getElementById('answer').value;step=Math.max(editing?1:0,step-1);render();});
     bind('question-form','submit',async e=>{
@@ -247,14 +247,14 @@
   async function saveConnection(){const data={backend:document.getElementById('backend').value,model:document.getElementById('model')?.value.trim()||''};const key=document.getElementById('api-key')?.value.trim();if(['openai','anthropic','ollama'].includes(data.backend)&&!data.model)throw new Error('Enter a model ID first.');if(['openai','anthropic'].includes(data.backend)&&!key&&!state.connections?.[data.backend]?.key_present)throw new Error('Add an API key for this session.');if(key)data.api_key=key;Object.assign(state,await api('/api/settings',data));document.getElementById('api-key')&&(document.getElementById('api-key').value='');}
   function connectionModal(){
     modal(`<div class="eyebrow">YOUR CONNECTIONS</div><h2>Keep setup light.</h2><div class="luma-connection"><span class="luma-symbol">${icon('event')}</span><div><strong>Luma</strong><p>Sign in once in the app’s research browser</p></div><button id="open-research-browser" class="secondary">Connect</button></div>${connectionFields()}<button id="save-connections" class="primary full">Save connection</button>`);
-    bind('open-research-browser','click',()=>agentModal().catch(e=>toast(e.message)));bindConnectionFields();bind('save-connections','click',async()=>{try{await saveConnection();document.querySelector('.modal-backdrop').remove();toast('Connection saved.');}catch(e){toast(e.message);}});
+    bind('open-research-browser','click',()=>agentModal(true).catch(e=>toast(e.message)));bindConnectionFields();bind('save-connections','click',async()=>{try{await saveConnection();document.querySelector('.modal-backdrop').remove();toast('Connection saved.');}catch(e){toast(e.message);}});
   }
   function desktopLink(){
     const session={brief:state.brief,event:guide?.event,criteria_markdown:state.criteria_markdown};
     const encoded=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(session))));
     return 'http://127.0.0.1:8765/#session='+encodeURIComponent(encoded);
   }
-  async function agentModal(){
+  async function agentModal(openLuma=false){
     if(hosted){
       modal(`<div class="eyebrow">YOUR AGENT, BUILT IN</div><h2>Let your agent take it from here.</h2><p>Continue in the desktop workspace to choose Codex, Claude Code, Ollama, or an API, sign in to Luma, and prepare your guide.</p><a class="primary full" href="${esc(desktopLink())}" target="_blank" rel="noreferrer">Continue in desktop app ${icon('out')}</a><p class="hint">Your profile and event come with you. Results appear automatically in the desktop workspace.</p><details class="setup-detail"><summary>First time on this computer?</summary><p>Launch the local app, then select and configure your agent in Connections:</p><pre>${esc(companionCommand())}</pre><p>Keep it running and select Continue above. The first Luma connection installs the app’s research browser.</p></details>`,'Desktop workspace');return;
     }
@@ -278,7 +278,7 @@
     dialog.querySelector('#check-luma').addEventListener('click',()=>action('check_luma'));
     dialog.querySelector('#prepare-agent')?.addEventListener('click',async()=>{try{await api('/api/settings',{backend,model:dialog.querySelector('#agent-model')?.value||state.settings.model||''});await api('/api/agent',{action:'prepare',event_id:eventId,limit:Number(dialog.querySelector('#agent-budget').value)});dialog.remove();clearInterval(timer);view='discover';await refresh();}catch(error){toast(error.message);}});
     await sync();
-    if(!state.agent?.connected&&!state.agent?.busy)await action('connect');
+    if(openLuma&&!state.agent?.busy)await action('luma');
   }
   function analysisModal(){
     if(hosted||['agent','codex'].includes(state.settings?.backend)||!guide?.counts.captured){agentModal().catch(e=>toast(e.message));return;}
