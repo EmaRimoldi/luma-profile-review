@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 
 from luma_review.agent import AgentRunner
+from luma_review.settings import save_settings
+from luma_review.research import PageReader
 from luma_review.core import ReviewError, parse_criteria
 from luma_review.codex_app import CodexApp
 from luma_review.demo import DEMO_ANSWERS
@@ -20,9 +22,14 @@ TEXT='I currently build LLM inference systems.'
 
 class FakeBrowser:
     def __init__(self, root):
-        self.observations={URL:{'links':[{'url':URL,'name':'Synthetic engineer','photo':None}]}}
+        self.observations={URL:{'title':'Synthetic bio','text':TEXT,'retrieved_at':'2026-10-22T00:00:00Z','links':[]}}
+        self.reader=PageReader(root)
     def verify(self): return {'connected':True}
-    def source(self, source): return source
+    def background(self): pass
+    def roster(self, url, stop):
+        return {'attendees':[{'name':'Synthetic engineer','profile_url':URL}],'displayed_count':1,'complete':True,'scope':'Synthetic test roster'}
+    def open(self, url): return {'url':url,**self.observations[url]}
+    def source(self, source): return {**source,'title':'Synthetic bio','retrieved_at':'2026-10-22T00:00:00Z'}
     def close(self): pass
 
 
@@ -35,20 +42,19 @@ class FakeCodex:
         if method=='turn/start':return {'turn':{'id':'turn'}}
         if method=='turn/interrupt':return {}
         raise AssertionError(method)
-    def receive(self, timeout=1):
-        if not self.tool:return {}
-        self.tool('record_attendees',{'attendees':[{'name':'Synthetic engineer','profile_url':URL}], 'complete':True,'scope':'Synthetic test roster'})
-        record=self.tool('record_sources',{'profile_url':URL,'sources':[{'url':URL,'title':'Synthetic bio','text':TEXT}], 'outbound_links':[],'complete':True,'attempts':[]})
-        source_id=record['sources'][0]['id']
-        task=self.tool('inference_tasks',{'stage':'structure','limit':3})
-        result={'summary':'Synthetic inference engineer.','facts':[{'kind':'interest','value':'LLM inference','evidence':[{'source_id':source_id,'quote':'LLM inference systems'}]}],'relationships':[]}
-        self.tool('submit_inference',{'stage':'structure','request_hash':task['request_hash'],'responses':{URL:result}})
-        task=self.tool('inference_tasks',{'stage':'matching','limit':3})
-        rules=task['schema']['properties']['assessments']['items']['properties']['criterion_id']['enum']
-        result={'summary':'Synthetic inference engineer.','assessments':[{'criterion_id':rule,'verdict':'yes','reason':'Explicit current inference work.','evidence':[{'source_id':source_id,'quote':TEXT}]} for rule in rules]}
-        self.tool('submit_inference',{'stage':'matching','request_hash':task['request_hash'],'responses':{URL:result}})
-        self.notify('turn/completed',{'turn':{'status':'completed'}})
+    def receive(self, timeout=1): return {}
+
     def close(self):pass
+
+
+class FakeBackend:
+    identity={'backend':'test', 'model':'fixture'}
+    def generate(self, prompt, schema, url):
+        source_id='s-'+__import__('luma_review.core',fromlist=['fingerprint']).fingerprint(URL)[:12]
+        if url.endswith('#structure'):
+            return {'summary':'Synthetic inference engineer.','facts':[{'kind':'interest','value':'LLM inference','evidence':[{'source_id':source_id,'quote':'LLM inference systems'}]}],'relationships':[]}
+        rules=schema['properties']['assessments']['items']['properties']['criterion_id']['enum']
+        return {'summary':'Synthetic inference engineer.','assessments':[{'criterion_id':rule,'verdict':'yes','reason':'Explicit current inference work.','evidence':[{'source_id':source_id,'quote':TEXT}]} for rule in rules]}
 
 
 class InAppAgentTests(unittest.TestCase):
@@ -57,7 +63,7 @@ class InAppAgentTests(unittest.TestCase):
         self.workspace=Workspace(Path(self.temp.name));self.workspace.save_brief(DEMO_ANSWERS)
         self.event=self.workspace.create_event('https://luma.com/synthetic-agent','Synthetic test')['event_id']
         self.job={}
-        self.runner=AgentRunner(self.workspace,lambda **v:self.job.update(v),FakeCodex,FakeBrowser)
+        self.runner=AgentRunner(self.workspace,lambda **v:self.job.update(v),FakeCodex,FakeBrowser,lambda *a,**kw:FakeBackend())
         self.addCleanup(self.runner.close)
     def test_preparation_saves_reviewed_results_without_chat_handoff(self):
         self.runner.action('prepare',self.event,10)
@@ -67,18 +73,48 @@ class InAppAgentTests(unittest.TestCase):
         self.assertIsNone(self.runner.snapshot().get('error'))
         self.assertEqual(self.workspace.guide(self.event)['counts']['reviewed'],1)
         self.assertEqual(self.job['stage'],'Ready')
-    def test_unknown_action_bad_budget_and_unobserved_identity_are_rejected(self):
+    def test_unknown_action_and_bad_budget_are_rejected(self):
         for action,limit in [('shell',10),('prepare',0),('prepare',True),('prepare',101)]:
             with self.assertRaises(ReviewError):self.runner.action(action,self.event,limit)
-        self.runner.browser=FakeBrowser(self.workspace.root);self.runner.event_id=self.event;self.runner.tool_calls=0
-        with self.assertRaises(ReviewError):self.runner._tool('record_attendees',{'attendees':[{'name':'Invented','profile_url':'https://luma.com/user/invented'}],'complete':False,'scope':'test'})
-    def test_stop_and_request_for_manual_action_are_explicit(self):
-        self.runner.tool_calls=0
+
+    def test_preparing_with_a_new_model_reanalyzes_without_reading_sources_again(self):
+        from unittest.mock import Mock
+        backends = []
+        def factory(name, model, **kwargs):
+            provider = FakeBackend()
+            provider.identity = {'backend': name, 'model': model or 'default'}
+            provider.generate = Mock(wraps=provider.generate)
+            backends.append(provider)
+            return provider
+        self.runner.backend_factory = factory
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 2)
+        self.runner.browser.open = Mock(side_effect=AssertionError('Completed sources were reread'))
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 0)
+        save_settings(self.workspace, {'model': 'another-model'})
+        self.runner._prepare(self.event, 10)
+        self.assertEqual(backends[-1].generate.call_count, 2)
+        self.runner.browser.open.assert_not_called()
+        for stage in ['structure', 'matching']:
+            records = self.workspace.read(self.workspace.directory(self.event) / (stage + '.json'))
+            self.assertEqual(records[URL]['backend']['model'], 'another-model')
+    def test_stop_does_not_reopen_collection_and_preserves_results(self):
         self.runner.action('stop')
-        with self.assertRaises(ReviewError):self.runner._tool('progress',{'message':'Still working'})
-        self.runner.stop_requested.clear();self.runner._tool('request_user_action',{'message':'Sign in on Luma.'})
-        self.assertTrue(self.runner.waiting)
-        self.assertEqual(self.runner.snapshot()['needs_action'],'Sign in on Luma.')
+        self.assertTrue(self.runner.stop_requested.is_set())
+        self.assertEqual(self.workspace.guide(self.event)['counts']['captured'],0)
+
+    def test_non_codex_backend_does_not_initialize_codex(self):
+        from unittest.mock import patch
+        save_settings(self.workspace,{'backend':'claude'})
+        with patch('luma_review.cli.doctor',return_value={'available':True}):
+            self.runner.action('prepare',self.event,1)
+            deadline=time.monotonic()+3
+            while self.runner.snapshot()['busy'] and time.monotonic()<deadline:time.sleep(.01)
+        self.assertIsNone(self.runner.client)
+        self.assertIsNone(self.runner.snapshot().get('error'))
+        self.assertEqual(self.workspace.guide(self.event)['counts']['reviewed'],1)
+
     def test_sources_must_match_an_observed_page(self):
         browser=ResearchBrowser(self.workspace.root)
         browser.observations[URL]={'title':'Observed','text':TEXT,'retrieved_at':'2026-10-22T00:00:00Z'}

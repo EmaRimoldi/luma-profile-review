@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .core import ReviewError
 
-AGENTS = ["codex", "claude", "cursor", "copilot", "opencode", "claude-desktop"]
+AGENTS = ["codex", "claude", "cursor", "copilot", "copilot-cli", "opencode", "gemini", "zed", "claude-desktop"]
 
 
 def integration_config(agent: str, workspace: Path, executable=None):
@@ -20,7 +20,13 @@ def integration_config(agent: str, workspace: Path, executable=None):
     if agent == "codex":
         value = '[mcp_servers.luma-profile-review]\ncommand = ' + json.dumps(python) + "\nargs = " + json.dumps(args) + "\n"
         return {"agent": agent, "format": "toml", "configuration": value, "location": "Your Codex MCP configuration"}
-    if agent == "copilot":
+    if agent == "zed":
+        value = {"context_servers": {"luma-profile-review": server}}
+        location = "Zed settings.json (context_servers)"
+    elif agent == "copilot-cli":
+        value = {"mcpServers": {"luma-profile-review": {"type": "local", **server, "tools": ["*"]}}}
+        location = "~/.copilot/mcp-config.json"
+    elif agent == "copilot":
         value = {"servers": {"luma-profile-review": {"type": "stdio", **server}}}
         location = ".vscode/mcp.json"
     elif agent == "opencode":
@@ -28,5 +34,5 @@ def integration_config(agent: str, workspace: Path, executable=None):
         location = "opencode.json"
     else:
         value = {"mcpServers": {"luma-profile-review": server}}
-        location = ".cursor/mcp.json" if agent == "cursor" else ".mcp.json" if agent == "claude" else "Claude Desktop MCP configuration"
+        location = {"cursor": ".cursor/mcp.json", "claude": ".mcp.json", "gemini": ".gemini/settings.json"}.get(agent, "Claude Desktop MCP configuration")
     return {"agent": agent, "format": "json", "configuration": json.dumps(value, indent=2), "location": location}

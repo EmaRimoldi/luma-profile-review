@@ -50,6 +50,8 @@ class Application:
         self.guide_lock = threading.Lock()
         self.agent = None
         self.agent_lock = threading.Lock()
+        self.analysis_stop = None
+        self.analysis_thread = None
 
     def agent_runner(self):
         with self.agent_lock:
@@ -58,24 +60,29 @@ class Application:
                 def update(**values):
                     with self.job_lock:
                         self.job.update(values)
-                self.agent = AgentRunner(self.workspace, update)
+                self.agent = AgentRunner(self.workspace, update, api_key=lambda name: self.api_keys.get(name))
             return self.agent
 
     def agent_state(self):
         if self.agent:
             return self.agent.snapshot()
         from .managed_browser import ResearchBrowser
-        return {"installed": bool(shutil.which("codex")), "connected": False, "busy": False,
+        from .agent import selected_backend
+        backend = selected_backend(self.workspace)
+        return {"backend": backend, "installed": bool(shutil.which(backend)), "connected": False, "busy": False,
                 "browser_available": ResearchBrowser.available(), "luma_connected": False,
-                "message": "Connect Codex to prepare your guide here."}
+                "message": "Connect your selected agent to prepare your guide."}
 
     def agent_action(self, data):
         action = data.get("action")
+        if action == "stop":
+            return self.stop_job()
         if action == "prepare":
             with self.job_lock:
                 if self.job.get("running"):
                     raise ReviewError("A guide is already being prepared.")
-                self.job = {"running": True, "kind": "agent", "stage": "Connecting your agent", "current": 0, "total": data.get("limit", 10)}
+                self.job = {"running": True, "kind": "agent", "event_id": data.get("event_id"),
+                            "stage": "Connecting your agent", "current": 0, "total": data.get("limit", 10)}
             try:
                 return self.agent_runner().action(action, data.get("event_id"), data.get("limit", 10))
             except Exception:
@@ -83,6 +90,25 @@ class Application:
                     self.job["running"] = False
                 raise
         return self.agent_runner().action(action)
+
+    def stop_job(self):
+        with self.job_lock:
+            if self.job.get("running") and self.job.get("kind") == "analysis":
+                self.analysis_stop.set()
+                self.job.update(stage="Stopping… Completed work is saved.")
+                return dict(self.job)
+        # Stopping an idle app must not initialize an agent or request a login.
+        if self.agent:
+            self.agent.action("stop")
+        with self.job_lock:
+            return dict(self.job)
+
+    def close(self):
+        self.stop_job()
+        if self.analysis_thread:
+            self.analysis_thread.join(timeout=8)
+        if self.agent:
+            self.agent.close()
 
     def connection_state(self):
         return {"settings": read_settings(self.workspace),
@@ -133,26 +159,34 @@ class Application:
         if not self.workspace.dataset(event_id)["people"]:
             raise ReviewError("Collect or import some attendee profiles first")
         provider = make_backend(backend, model or None, api_key=self.api_keys.get(backend), work_dir=self.workspace.root / "work/model-runs")
-        with self.job_lock:
-            if self.job["running"] or (self.agent and self.agent.snapshot()["busy"]):
-                raise ReviewError("An analysis is already running")
-            self.job = {"running": True, "event_id": event_id, "backend": backend}
+        cancelled = threading.Event()
         def work():
             try:
                 def progress(value):
                     with self.job_lock:
                         self.job.update(value)
-                guide = self.workspace.analyze(event_id, provider, progress=progress)
+                guide = self.workspace.analyze(event_id, provider, progress=progress, stop=cancelled.is_set)
                 with self.job_lock:
-                    self.job.update(running=False, counts=guide["counts"], errors=guide["errors"])
+                    self.job.update(running=False, stopped=cancelled.is_set(),
+                                    stage="Stopped. Completed work is saved; refresh to resume." if cancelled.is_set() else "Ready",
+                                    counts=guide["counts"], errors=guide["errors"])
             except Exception as error:
                 with self.job_lock:
                     self.job.update(running=False, error=str(error))
-        threading.Thread(target=work, daemon=True).start()
-        return self.job
+        with self.job_lock:
+            if self.job["running"] or (self.agent and self.agent.snapshot()["busy"]):
+                raise ReviewError("An analysis is already running")
+            provider.cancel = cancelled
+            self.analysis_stop = cancelled
+            self.job = {"running": True, "kind": "analysis", "event_id": event_id, "backend": backend}
+            self.analysis_thread = threading.Thread(target=work, daemon=True)
+            self.analysis_thread.start()
+            return dict(self.job)
 
 
 def make_server(workspace: Workspace, port=8765):
+    if type(port) is not int or not 0 <= port <= 65535:
+        raise ReviewError("Choose a port between 0 and 65535")
     app = Application(workspace)
     class Handler(BaseHTTPRequestHandler):
         server_version = "LumaReviewLocal/0.2"
@@ -230,6 +264,8 @@ def make_server(workspace: Workspace, port=8765):
                 route = urlsplit(self.path).path
                 if route == "/api/agent":
                     result = app.agent_action(data)
+                elif route == "/api/stop":
+                    result = app.stop_job()
                 elif route == "/api/handoff":
                     from .onboarding import make_brief
                     from .core import parse_criteria, public_url
@@ -281,8 +317,7 @@ def make_server(workspace: Workspace, port=8765):
             pass
     class LocalServer(ThreadingHTTPServer):
         def server_close(self):
-            if app.agent:
-                app.agent.close()
+            app.close()
             super().server_close()
     server = LocalServer(("127.0.0.1", port), Handler)
     server.application = app

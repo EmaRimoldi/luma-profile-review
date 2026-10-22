@@ -2,7 +2,7 @@
 
 ## Codex
 
-Uses `codex exec` with JSON Schema output, an ephemeral session, a read-only
+Uses `codex exec --json` with JSON Schema output, an ephemeral session, a read-only
 sandbox, shell tool disabled, and web search disabled. Authentication remains
 managed by the CLI. `--ignore-user-config` avoids inheriting a user's MCP
 configuration into this evaluation. It does not claim to override managed
@@ -43,8 +43,9 @@ as synthetic, rather than represented as real model inference.
 
 ## Failure and cache semantics
 
-Backends have a per-person timeout, defaulting to 180 seconds. Requests run
-sequentially, with a checkpoint after each profile. Provider failures and invalid
+Backends have a per-model-request timeout, defaulting to 180 seconds. Requests run
+sequentially, with a checkpoint after each validated profile. CLI batches can
+contain up to three profiles. Provider failures and invalid
 assessments remain in `results.json` and in the report. A later run reuses only
 successful validated cache entries and attempts failed profiles again.
 
@@ -68,3 +69,43 @@ a separate UI server process's in-memory key. API charges are separate from
 subscriptions. No provider fallback occurs automatically. Structured-output
 contracts are covered by mocked transport tests; live API accounts were not
 used during the redesign.
+
+## Shared in-app research (0.4)
+
+Every listed backend can now prepare a guide in the local app. Collection is
+model-independent: HTTP for public professional pages, headless DOM for dynamic
+and authenticated pages. Codex app-server handles its connection/catalog UI;
+actual inference uses the same validated adapter contract as other backends.
+Codex need not be installed to use Claude, Ollama, or an API backend.
+
+CLI adapters batch up to three sourced profiles per stage to amortize agent
+startup and system-context overhead. Each person's result is still validated
+and checkpointed separately. A malformed or missing batch response is a visible
+failure; it does not trigger another provider. Profiles with no sources are
+assigned unknown judgments without a model call. Ollama remains sequential,
+with an explicit **16,384-token context**, temperature 0, and 4,096-output-token
+limit to avoid loading a model's largest context by default. Input extremes
+and weak local models can still fail validation; choose a suitable model.
+
+`work/usage.jsonl` records successful model response timings, prompt character
+counts, backend identity, and token counts reported by the provider. It contains
+no prompts, source URLs, or credentials. Provider counts include their own system
+context and can differ greatly from prompt characters. Missing counts mean
+unavailable, not zero; failures before a response may still consume tokens.
+The local app offers Stop during both event preparation and Refresh analysis.
+Stopping keeps validated checkpoints; refreshing again processes unfinished
+work. Cancellation is not saved as a profile error, and each retry gets its own
+cancellation signal. Closing the app also requests cancellation.
+CLI Stop terminates the owned process group; network model calls stop between
+requests, bounded by their request timeout. `analyze --timeout 60` sets the
+per-request timeout. Batch cache entries still depend on each person's own
+sources, criteria, backend, and model, so a repeat run makes no model calls.
+
+Account, transport, executable, and timeout failures stop the current run after
+one failed batch. Invalid individual assessments remain retryable without
+discarding other validated results. The small local models in the audit are
+transport tests, not recommended or certified matching models; run the public
+customer smoke and check its semantic quality gates before relying on a model.
+
+Current structured-output references: [OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs),
+[Anthropic](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).

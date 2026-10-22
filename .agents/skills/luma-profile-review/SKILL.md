@@ -1,6 +1,6 @@
 ---
 name: luma-profile-review
-description: Prepare a personalized guide to people worth meeting at Luma events, using short professional onboarding, browser research, evidence-linked profiles, and the shared MCP or CLI workflow.
+description: Prepare a personalized guide to people worth meeting at Luma events, using short professional onboarding, HTTP-first research, evidence-linked profiles, and the shared MCP or CLI workflow.
 ---
 
 # Luma Profile Review
@@ -24,10 +24,11 @@ to resume work. Keep private data under the configured ignored workspace.
 
 ## Collect and enrich
 
-Follow your host's browser-tool documentation and authorization rules. Reuse
+Prefer `collect_event_profiles` for a small, resumable batch when the workspace has a saved Luma session. It reads public pages by HTTP and uses headless Chromium for dynamic or authenticated content. Close the app's sign-in window with **Check Luma** first. Use `research_page` for additional public professional pages; it needs no browser. These tools do not call another model.
+
+When host browsing is necessary, follow your host's browser-tool documentation and authorization rules. Reuse
 the user's authenticated browser when available; do not transfer cookies to
-scripts. A host without browser tools requires an imported snapshot or browser
-integration, not guessed attendee data.
+scripts. A host without browser tools can use the collection tools or an imported snapshot. Never guess attendee data.
 
 Open the actual guest-list container. Collect observed names and canonical
 profile URLs with `record_attendees`, scrolling/paginating as needed. Do not
@@ -66,7 +67,7 @@ target identity referenced by its source and a supporting relationship quote.
 
 For an explicitly selected backend, use `run_event_analysis`, or run the CLI's
 `analyze` command for long batches. Supported adapters are Codex CLI, Claude
-Code, and Ollama. Do not silently switch providers after a failure.
+Code, Ollama, and explicit OpenAI/Anthropic APIs (separate billing). Do not silently switch providers after a failure.
 
 Return `event_guide` and a portable HTML guide when useful. Include why each
 suggestion could help the user's stated goal, a grounded conversation opener,

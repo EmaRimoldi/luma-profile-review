@@ -5,20 +5,22 @@ import copy
 import json
 import re
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .core import (ReviewError, aggregate, fingerprint, make_prompt, parse_criteria,
+from .core import (PROMPT_VERSION, ReviewError, aggregate, fingerprint, make_prompt, parse_criteria,
                    public_url, response_schema, text, validate_assessment, validate_profiles)
 from .graph import build_graph
 from .contact import model_profile, presentation, validate_presentation
 from .matching import evidence_ranking, keyword_ranking
 from .onboarding import QUESTIONS, criteria_from_brief, make_brief
 from .pipeline import write_json
-from .professional import structure_prompt, structure_schema, validate_structure
+from .professional import referenced_urls, structure_prompt, structure_schema, validate_structure
 from .presentation import present_brief, present_criteria, present_guide
+from .providers import BackendUnavailable
 
 
 class Workspace:
@@ -52,7 +54,10 @@ class Workspace:
                     fcntl.flock(stream, fcntl.LOCK_UN)
 
     def read(self, path: Path, default=None):
-        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else copy.deepcopy(default)
+        try:
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else copy.deepcopy(default)
+        except json.JSONDecodeError:
+            raise ReviewError(f'Invalid saved {path.name}. Restore a backup or choose a new workspace; existing files were not overwritten.') from None
 
     def directory(self, event_id: str):
         if not isinstance(event_id, str) or not re.fullmatch(r"[a-f0-9]{16}", event_id):
@@ -193,10 +198,14 @@ class Workspace:
     def _input_hash(self, stage, data, criteria, brief):
         structures = self.read(self.directory(fingerprint(data["event"]["url"])[:16]) / "structure.json", {}) if stage == "matching" else None
         data = {**data, "people": [model_profile(p) for p in data["people"]]}
-        return fingerprint({"stage": stage, "data": data, "criteria": criteria.sha256, "brief": brief["id"], "structures": structures, "version": 1})
+        return fingerprint({"stage": stage, "data": data, "criteria": criteria.sha256, "brief": brief["id"], "structures": structures, "version": PROMPT_VERSION})
 
-    def _person_hash(self, person, brief, criteria, stage="structure", structures=None):
-        base = fingerprint({"person": model_profile(person), "brief": brief["id"], "criteria": criteria.sha256})
+    def _person_hash(self, person, brief, criteria, stage="structure", structures=None, known_people=None):
+        inputs = {"person": model_profile(person), "brief": brief["id"], "criteria": criteria.sha256, 'version': PROMPT_VERSION}
+        referenced = {url: known_people[url] for url in referenced_urls(person) if url in (known_people or {})}
+        if referenced:
+            inputs['referenced_people'] = referenced
+        base = fingerprint(inputs)
         if stage == "matching":
             record = (structures or {}).get(person["profile_url"], {})
             structured = record.get("result") if record.get("input_hash") == base else None
@@ -209,9 +218,10 @@ class Workspace:
         data, criteria, brief = self.dataset(event_id), self.criteria(), self.brief()
         records = self.read(self.directory(event_id) / f"{stage}.json", {})
         structures = self.read(self.directory(event_id) / "structure.json", {})
+        known_people = {p['profile_url']: p['name'] for p in data['people']}
         requests = []
         for person in data["people"]:
-            key = self._person_hash(person, brief, criteria, stage, structures)
+            key = self._person_hash(person, brief, criteria, stage, structures, known_people)
             record = records.get(person["profile_url"], {})
             if not include_reviewed and record.get("input_hash") == key:
                 continue
@@ -220,12 +230,19 @@ class Workspace:
             else:
                 enriched = copy.deepcopy(person)
                 record_structure = structures.get(person["profile_url"], {})
-                if record_structure.get("input_hash") == self._person_hash(person, brief, criteria):
+                if record_structure.get("input_hash") == self._person_hash(person, brief, criteria, known_people=known_people):
                     enriched["professional_profile"] = record_structure["result"]
                 prompt = make_prompt(criteria, enriched)
             requests.append({"profile_url": person["profile_url"], "input_hash": key, "prompt": prompt})
+        selected = {r['profile_url'] for r in requests[:limit]}
+        targets = set()
+        if stage == 'structure':
+            for person in data['people']:
+                if person['profile_url'] in selected:
+                    targets.update(referenced_urls(person))
+            targets.intersection_update(p['profile_url'] for p in data['people'])
         return {"stage": stage, "request_hash": self._input_hash(stage, data, criteria, brief),
-                "schema": structure_schema() if stage == "structure" else response_schema(criteria),
+                "schema": structure_schema(targets) if stage == "structure" else response_schema(criteria),
                 "requests": requests[:limit], "remaining": len(requests)}
 
     def submit(self, event_id: str, stage: str, request_hash: str, responses: dict, backend=None):
@@ -248,7 +265,7 @@ class Workspace:
                     validate_structure(result, person, set(people))
                 else:
                     validate_assessment(result, criteria, person)
-                records[url] = {"input_hash": self._person_hash(person, brief, criteria, stage, structures),
+                records[url] = {"input_hash": self._person_hash(person, brief, criteria, stage, structures, {u: p['name'] for u, p in people.items()}),
                                 "result": result, "backend": backend or {"backend": "host"}}
             write_json(self.directory(event_id) / f"{stage}.json", records)
             errors_path = self.directory(event_id) / "errors.json"
@@ -258,36 +275,80 @@ class Workspace:
             write_json(errors_path, errors)
         return {"accepted": len(responses), "stage": stage}
 
-    def analyze(self, event_id, backend, refresh=False, progress=None):
+    def analyze(self, event_id, backend, refresh=False, progress=None, *, profile_urls=None, stop=None):
+        def failure(stage, url, error):
+            with self.locked():
+                path = self.directory(event_id) / "errors.json"
+                errors = self.read(path, {})
+                errors[stage + ":" + url] = str(error)
+                write_json(path, errors)
+
+        def metric(stage, started, characters, count):
+            value = {'stage': stage, 'backend': backend.identity, 'profiles': count,
+                     'seconds': round(time.monotonic() - started, 3),
+                     'prompt_characters': characters, 'usage': getattr(backend, 'last_usage', {})}
+            with self.locked():
+                path = self.root / 'work/usage.jsonl'
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open('a', encoding='utf-8') as stream:
+                    stream.write(json.dumps(value) + '\n')
+
         for stage in ["structure", "matching"]:
-            count = len(self.dataset(event_id)["people"])
-            if count > 10000:
+            people = {p['profile_url']: p for p in self.dataset(event_id)['people']}
+            if len(people) > 10000:
                 raise ReviewError("Process events with more than 10,000 profiles in explicit batches")
-            tasks = self.tasks(event_id, stage, limit=max(1, count), include_reviewed=True)
+            tasks = self.tasks(event_id, stage, limit=max(1, len(people)), include_reviewed=True)
             existing = self.read(self.directory(event_id) / f"{stage}.json", {})
-            for index, request in enumerate(tasks["requests"], 1):
-                record = existing.get(request["profile_url"], {})
-                if not refresh and record.get("input_hash") == request["input_hash"] and record.get("backend") == backend.identity:
-                    continue
+            pending = [request for request in tasks['requests']
+                       if (profile_urls is None or request['profile_url'] in profile_urls)
+                       and (refresh or existing.get(request['profile_url'], {}).get('input_hash') != request['input_hash']
+                            or existing.get(request['profile_url'], {}).get('backend') != backend.identity)]
+            size = min(3, max(1, getattr(backend, 'batch_size', 1)))
+            for offset in range(0, len(pending), size):
+                if stop and stop():
+                    return self.guide(event_id)
+                batch = pending[offset:offset + size]
                 if progress:
-                    progress({"stage": stage, "current": index, "total": len(tasks["requests"])})
-                try:
-                    suffix = "#structure" if stage == "structure" else ""
-                    person = next(p for p in self.dataset(event_id)["people"] if p["profile_url"] == request["profile_url"])
-                    if not person["sources"]:
-                        result = {"summary": "No readable professional source.", "facts": [], "relationships": []} if stage == "structure" else {
-                            "summary": "No readable professional source; relevance needs verification.", "assessments": [
-                                {"criterion_id": rule.id, "verdict": "unknown", "reason": "No readable professional source.", "evidence": []}
+                    progress({'stage': stage, 'current': offset + 1, 'total': len(pending)})
+                sourced = [request for request in batch if people[request['profile_url']]['sources']]
+                results = {}
+                if sourced:
+                    started = time.monotonic()
+                    try:
+                        if len(sourced) > 1 and hasattr(backend, 'generate_batch'):
+                            results, characters = backend.generate_batch(sourced, tasks['schema'])
+                        else:
+                            request = sourced[0]
+                            suffix = '#structure' if stage == 'structure' else ''
+                            results[request['profile_url']] = backend.generate(request['prompt'], tasks['schema'], request['profile_url'] + suffix)
+                            characters = len(request['prompt'])
+                        metric(stage, started, characters, len(sourced))
+                    except BackendUnavailable as error:
+                        if stop and stop():
+                            return self.guide(event_id)
+                        for request in sourced:
+                            failure(stage, request['profile_url'], error)
+                        raise
+                    except ReviewError as error:
+                        if stop and stop():
+                            return self.guide(event_id)
+                        for request in sourced:
+                            failure(stage, request['profile_url'], error)
+                for request in batch:
+                    url = request['profile_url']
+                    if not people[url]['sources']:
+                        result = {'summary': 'No readable professional source.', 'facts': [], 'relationships': []} if stage == 'structure' else {
+                            'summary': 'No readable professional source; relevance needs verification.', 'assessments': [
+                                {'criterion_id': rule.id, 'verdict': 'unknown', 'reason': 'No readable professional source.', 'evidence': []}
                                 for rule in self.criteria().rules]}
+                    elif url in results:
+                        result = results[url]
                     else:
-                        result = backend.generate(request["prompt"], tasks["schema"], request["profile_url"] + suffix)
-                    self.submit(event_id, stage, tasks["request_hash"], {request["profile_url"]: result}, backend.identity)
-                except ReviewError as error:
-                    with self.locked():
-                        path = self.directory(event_id) / "errors.json"
-                        errors = self.read(path, {})
-                        errors[stage + ":" + request["profile_url"]] = str(error)
-                        write_json(path, errors)
+                        continue
+                    try:
+                        self.submit(event_id, stage, tasks['request_hash'], {url: result}, backend.identity)
+                    except ReviewError as error:
+                        failure(stage, url, error)
         return self.guide(event_id)
 
     def guide(self, event_id: str):
@@ -297,15 +358,16 @@ class Workspace:
         assessments = self.read(directory / "matching.json", {})
         feedback = self.read(directory / "feedback.json", {})
         valid_structures, reviewed, cards = {}, [], []
+        known_people = {p['profile_url']: p['name'] for p in data['people']}
         for person in data["people"]:
             url = person["profile_url"]
-            key = self._person_hash(person, brief, criteria)
+            key = self._person_hash(person, brief, criteria, known_people=known_people)
             structure = structures.get(url, {})
             if structure.get("input_hash") == key:
                 validate_structure(structure["result"], person, {p["profile_url"] for p in data["people"]})
                 valid_structures[url] = structure["result"]
             record = assessments.get(url, {})
-            if record.get("input_hash") != self._person_hash(person, brief, criteria, "matching", structures):
+            if record.get("input_hash") != self._person_hash(person, brief, criteria, "matching", structures, known_people):
                 continue
             result = validate_assessment(record["result"], criteria, person)
             score = aggregate(result, criteria)

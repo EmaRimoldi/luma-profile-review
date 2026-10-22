@@ -19,3 +19,22 @@ jobs:
       - run: node --check src/luma_review/static/app.js
       - run: node --test tests/*.test.cjs
       - run: python run.py demo --workspace data/ci-demo
+      - name: Install the non-editable distribution
+        run: python -m pip install --force-reinstall --no-deps .
+      - name: Exercise installed package assets outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import luma_review
+          from luma_review.demo import load_demo
+          from luma_review.webapp import export_guide
+          from luma_review.workspace import Workspace
+          assert not Path(luma_review.__file__).resolve().is_relative_to(Path(os.environ['GITHUB_WORKSPACE']))
+          guide = load_demo(Workspace(Path('installed-customer-smoke')))
+          html = export_guide(guide)
+          assert 'data:font/woff2;base64,' in html
+          assert 'cytoscape' in html
+          assert guide['counts']['reviewed'] > 0
+          PY

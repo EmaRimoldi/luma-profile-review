@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from .core import (PROMPT_VERSION, Criteria, ReviewError, aggregate, fingerprint,
                    make_prompt, response_schema, validate_assessment)
+from .providers import BackendUnavailable
 
 
 def write_json(path: Path, value):
@@ -63,6 +64,11 @@ def evaluate(dataset: dict, criteria: Criteria, backend, output: Path, *, cache:
                 result = validate_assessment(result, criteria, person)
                 write_json(cache_file, result)
             entry.update(status="reviewed", result=result, score=aggregate(result, criteria), cached=cached)
+        except BackendUnavailable as error:
+            entry.update(status='failed', error=str(error))
+            write_json(output / 'results.json', run)
+            (output / 'report.md').write_text(render_report(run, criteria), encoding='utf-8')
+            raise
         except ReviewError as error:
             entry.update(status="failed", error=str(error))
         write_json(output / "results.json", run)

@@ -1,0 +1,330 @@
+{
+  "live-codex-result": {
+    "backend": "codex",
+    "model": null,
+    "seconds": 33.724,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "model_requests": 4,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 5.108,
+        "prompt_characters": 1450,
+        "usage": {
+          "input_tokens": 9509,
+          "cached_input_tokens": 0,
+          "output_tokens": 208
+        }
+      },
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 6.633,
+        "prompt_characters": 1462,
+        "usage": {
+          "input_tokens": 12533,
+          "cached_input_tokens": 0,
+          "output_tokens": 120
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 11.976,
+        "prompt_characters": 4819,
+        "usage": {
+          "input_tokens": 13256,
+          "cached_input_tokens": 0,
+          "output_tokens": 346
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "seconds": 9.784,
+        "prompt_characters": 4471,
+        "usage": {
+          "input_tokens": 13151,
+          "cached_input_tokens": 0,
+          "output_tokens": 355
+        }
+      }
+    ],
+    "export_bytes": 680832
+  },
+  "live-codex-batched-result": {
+    "backend": "codex",
+    "model": null,
+    "seconds": 26.192,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "model_requests": 2,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 11.075,
+        "prompt_characters": 3513,
+        "usage": {
+          "input_tokens": 13234,
+          "cached_input_tokens": 0,
+          "output_tokens": 445
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 15.003,
+        "prompt_characters": 10352,
+        "usage": {
+          "input_tokens": 11653,
+          "cached_input_tokens": 0,
+          "output_tokens": 696
+        }
+      }
+    ],
+    "export_bytes": 680404
+  },
+  "research-benchmark": {
+    "fixture": "Synthetic navigation-heavy professional page; same bio in both inputs",
+    "old_dom_payload_characters": 76702,
+    "new_http_payload_characters": 1393,
+    "payload_reduction_percent": 98.18,
+    "extraction_cpu_ms_per_page": 4.553,
+    "browser_starts": 0,
+    "token_counts": "Not estimated: actual provider usage is recorded by customer-smoke.py",
+    "public_http": {
+      "url": "https://jamiesimon.io/",
+      "cold_seconds": 0.2164,
+      "warm_seconds": 0.0002,
+      "text_characters": 574,
+      "metrics": {
+        "http_requests": 1,
+        "cache_hits": 0,
+        "download_bytes": 11471,
+        "returned_characters": 574,
+        "http_seconds": 0.2162109169876203,
+        "dom_reads": 0
+      }
+    }
+  },
+  "installed-codex-result": {
+    "backend": "codex",
+    "model": null,
+    "seconds": 25.478,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "errors": {},
+    "quality_checks": {
+      "positive_inference_match": true,
+      "explicit_negative_match": true,
+      "missing_source_is_unknown": true
+    },
+    "model_requests": 2,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 9.199,
+        "prompt_characters": 3679,
+        "usage": {
+          "input_tokens": 13170,
+          "cached_input_tokens": 0,
+          "output_tokens": 405
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "codex",
+          "model": "cli-default"
+        },
+        "profiles": 2,
+        "seconds": 16.17,
+        "prompt_characters": 10584,
+        "usage": {
+          "input_tokens": 14643,
+          "cached_input_tokens": 7168,
+          "output_tokens": 785
+        }
+      }
+    ],
+    "export_bytes": 680242
+  },
+  "installed-ollama-result": {
+    "backend": "ollama",
+    "model": "qwen2.5:3b",
+    "seconds": 56.967,
+    "counts": {
+      "captured": 3,
+      "with_sources": 2,
+      "structured": 3,
+      "reviewed": 3,
+      "recommended": 1
+    },
+    "errors": {},
+    "quality_checks": {
+      "positive_inference_match": true,
+      "explicit_negative_match": false,
+      "missing_source_is_unknown": true
+    },
+    "model_requests": 4,
+    "repeat_model_requests": 0,
+    "usage": [
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "ollama",
+          "model": "qwen2.5:3b",
+          "base_url": "http://127.0.0.1:11434",
+          "context_tokens": 16384
+        },
+        "profiles": 1,
+        "seconds": 8.233,
+        "prompt_characters": 1532,
+        "usage": {
+          "input_tokens": 585,
+          "output_tokens": 163
+        }
+      },
+      {
+        "stage": "structure",
+        "backend": {
+          "backend": "ollama",
+          "model": "qwen2.5:3b",
+          "base_url": "http://127.0.0.1:11434",
+          "context_tokens": 16384
+        },
+        "profiles": 1,
+        "seconds": 4.622,
+        "prompt_characters": 1544,
+        "usage": {
+          "input_tokens": 591,
+          "output_tokens": 122
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "ollama",
+          "model": "qwen2.5:3b",
+          "base_url": "http://127.0.0.1:11434",
+          "context_tokens": 16384
+        },
+        "profiles": 1,
+        "seconds": 18.136,
+        "prompt_characters": 4677,
+        "usage": {
+          "input_tokens": 1276,
+          "output_tokens": 420
+        }
+      },
+      {
+        "stage": "matching",
+        "backend": {
+          "backend": "ollama",
+          "model": "qwen2.5:3b",
+          "base_url": "http://127.0.0.1:11434",
+          "context_tokens": 16384
+        },
+        "profiles": 1,
+        "seconds": 25.828,
+        "prompt_characters": 4672,
+        "usage": {
+          "input_tokens": 1268,
+          "output_tokens": 544
+        }
+      }
+    ],
+    "export_bytes": 682427
+  },
+  "installed-luma-access-result": {
+    "access_gate_reported": true,
+    "message": "Error executing tool collect_event_profiles: This guest list requires your sign-in or event registration. Complete required steps yourself on Luma, then retry.",
+    "source_rows_saved": 0
+  },
+  "search-stress": {
+    "profiles": 10000,
+    "queries": 100,
+    "index_build_ms": 35.629291,
+    "query_p95_ms": 2.3325420000000037,
+    "median_query_ms": 1.2402909999999991
+  },
+  "ollama-context": {
+    "before_cli_reported_size": "14 GB",
+    "before_context": 131072,
+    "after": [
+      {
+        "name": "llama3.2:1b",
+        "size": 2974197760,
+        "size_vram": 2974197760,
+        "context_length": 16384
+      }
+    ]
+  },
+  "installed-recovery-check": {
+    "distribution_revision": "77a74b4",
+    "fixture": "Fictional profiles and local Claude protocol fixture; no live Claude inference",
+    "installed_targeted_tests": 31,
+    "consecutive_stop_restart_cycles": 20,
+    "owned_child_terminated": true,
+    "structured_checkpoints_at_stop": 3,
+    "reviewed_after_resume": 3,
+    "profile_errors_after_stop": 0,
+    "resume_model_stage_requests": 1,
+    "repeat_cli_calls": 0,
+    "malformed_json_cache_cases": 14,
+    "future_dated_cache_recovery": true,
+    "public_http_recheck": {
+      "url": "https://jamiesimon.io/",
+      "cold_seconds": 0.2115,
+      "warm_seconds": 0.0007,
+      "browser_starts": 0
+    },
+    "new_paid_model_calls": 0
+  }
+}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,11 @@ def doctor(name: str, base_url: str) -> dict:
             return {"backend": name, "available": True, "models": [m["name"] for m in value.get("models", [])]}
         except (URLError, TimeoutError, OSError, ValueError):
             return {"backend": name, "available": False, "note": "Start Ollama and install a model"}
+    if name in {'openai', 'anthropic'}:
+        return {'backend': name, 'available': bool(os.environ.get(name.upper() + '_API_KEY')),
+                'note': 'Checks key presence only; model access is verified by an actual request.'}
+    if name not in {'codex', 'claude'}:
+        return {'backend': name, 'available': False, 'note': 'Unsupported backend'}
     if not shutil.which(name):
         return {"backend": name, "available": False, "note": f"Install {name} and sign in"}
     args = [name, "login", "status"] if name == "codex" else [name, "auth", "status"]
@@ -63,7 +69,7 @@ def parser():
         if name == "report":
             command.add_argument("--results", type=Path, required=True)
         if name == "evaluate":
-            command.add_argument("--backend", choices=["codex", "claude", "ollama", "host"])
+            command.add_argument("--backend", choices=["codex", "claude", "ollama", "openai", "anthropic", "host"])
             command.add_argument("--model")
             command.add_argument("--base-url")
             command.add_argument("--timeout", type=float)
@@ -73,7 +79,7 @@ def parser():
             command.add_argument("--work-dir", type=Path, default=Path("work/model-runs"))
             command.add_argument("--refresh", action="store_true")
     check = commands.add_parser("doctor")
-    check.add_argument("--backend", choices=["codex", "claude", "ollama", "host", "all"], default="all")
+    check.add_argument("--backend", choices=["codex", "claude", "ollama", "openai", "anthropic", "host", "all"], default="all")
     check.add_argument("--base-url", default="http://127.0.0.1:11434")
     return p
 
@@ -98,10 +104,10 @@ def main(argv=None) -> int:
         if args.command in PRODUCT_COMMANDS:
             return run(args, config)
         if args.command == "doctor":
-            names = ["codex", "claude", "ollama", "host"] if args.backend == "all" else [args.backend]
+            names = ["codex", "claude", "ollama", "openai", "anthropic", "host"] if args.backend == "all" else [args.backend]
             statuses = [doctor(n, args.base_url) for n in names]
             print(json.dumps(statuses, indent=2))
-            return 0 if any(s["available"] for s in statuses) else 1
+            return 0 if any(s["available"] and (s['backend'] != 'host' or args.backend == 'host') for s in statuses) else 1
         criteria = parse_criteria(args.criteria.read_text(encoding="utf-8"))
         if args.command == "criteria":
             print(json.dumps({"sha256": criteria.sha256, "criteria": [asdict(c) for c in criteria.rules]}, indent=2))
