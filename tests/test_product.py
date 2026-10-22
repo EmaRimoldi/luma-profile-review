@@ -217,6 +217,20 @@ class WebTests(ProductBase):
         with urlopen(Request(self.base + "/api/feedback", data=data, headers=headers)) as response:
             self.assertTrue(json.load(response)["saved"])
 
+    def test_model_connection_http_never_returns_or_persists_the_key(self):
+        headers = {"Content-Type": "application/json", "X-Luma-Token": self.server.application.token, "Origin": self.base}
+        data = json.dumps({"backend": "anthropic", "model": "explicit-model", "api_key": "fake-key-http-sentinel"}).encode()
+        with urlopen(Request(self.base + "/api/settings", data=data, headers=headers)) as response:
+            body = response.read().decode()
+            self.assertNotIn("fake-key-http-sentinel", body)
+            self.assertTrue(json.loads(body)["connections"]["anthropic"]["key_present"])
+        with urlopen(self.base + "/api/state") as response:
+            self.assertNotIn("fake-key-http-sentinel", response.read().decode())
+        self.assertNotIn("fake-key-http-sentinel", (self.workspace.root / "settings.json").read_text())
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(Request(self.base + "/api/settings", data=data, headers={**headers, "Origin": "https://unrelated.example"}))
+        self.assertEqual(caught.exception.code, 403)
+
 
 class AgentIntegrationTests(unittest.TestCase):
     def test_agent_configs_preserve_the_virtual_environment_interpreter(self):

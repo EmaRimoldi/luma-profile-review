@@ -35,7 +35,7 @@ def add_commands(commands):
         if name == "submit":
             p.add_argument("--responses", type=Path, required=True)
         if name == "analyze":
-            p.add_argument("--backend", choices=["codex", "claude", "ollama"])
+            p.add_argument("--backend", choices=["codex", "claude", "ollama", "openai", "anthropic"])
             p.add_argument("--model")
             p.add_argument("--base-url")
             p.add_argument("--refresh", action="store_true")

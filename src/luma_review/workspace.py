@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from .core import (ReviewError, aggregate, fingerprint, make_prompt, parse_criteria,
                    public_url, response_schema, text, validate_assessment, validate_profiles)
 from .graph import build_graph
+from .contact import model_profile, presentation, validate_presentation
 from .matching import evidence_ranking, keyword_ranking
 from .onboarding import QUESTIONS, criteria_from_brief, make_brief
 from .pipeline import write_json
@@ -127,8 +128,13 @@ class Workspace:
                 url = public_url(attendee.get("profile_url"), luma=True)
                 person = {"name": text(attendee.get("name"), "Attendee name"), "profile_url": url,
                           "sources": [], "outbound_links": [], "collection_complete": False}
+                for field in ("photo_url", "contact_links"):
+                    if field in attendee:
+                        person[field] = copy.deepcopy(attendee[field])
+                validate_presentation(person)
                 if url in by_url:
                     by_url[url]["name"] = person["name"]
+                    by_url[url].update({k: person[k] for k in ("photo_url", "contact_links") if k in person})
                 else:
                     by_url[url] = person
             data["people"] = list(by_url.values())
@@ -185,10 +191,11 @@ class Workspace:
 
     def _input_hash(self, stage, data, criteria, brief):
         structures = self.read(self.directory(fingerprint(data["event"]["url"])[:16]) / "structure.json", {}) if stage == "matching" else None
+        data = {**data, "people": [model_profile(p) for p in data["people"]]}
         return fingerprint({"stage": stage, "data": data, "criteria": criteria.sha256, "brief": brief["id"], "structures": structures, "version": 1})
 
     def _person_hash(self, person, brief, criteria, stage="structure", structures=None):
-        base = fingerprint({"person": person, "brief": brief["id"], "criteria": criteria.sha256})
+        base = fingerprint({"person": model_profile(person), "brief": brief["id"], "criteria": criteria.sha256})
         if stage == "matching":
             record = (structures or {}).get(person["profile_url"], {})
             structured = record.get("result") if record.get("input_hash") == base else None
@@ -316,7 +323,7 @@ class Workspace:
                           "sources": person["sources"], "professional": valid_structures.get(url),
                           "source_attempts": person.get("source_attempts", []),
                           "provenance": {"structure": structure.get("backend"), "matching": record.get("backend")},
-                          "feedback": feedback.get(url, {}), "score": score})
+                          "feedback": feedback.get(url, {}), "score": score, **presentation(person)})
         ranking = evidence_ranking(reviewed, criteria)
         positions = {r["profile_url"]: i for i, r in enumerate(ranking)}
         cards.sort(key=lambda c: positions[c["profile_url"]])
@@ -333,7 +340,7 @@ class Workspace:
         return result
 
     def save_feedback(self, event_id, profile_url, status, note=""):
-        if status not in {"saved", "met", "not_relevant", "none"}:
+        if status not in {"saved", "meet", "met", "not_relevant", "none"}:
             raise ReviewError("Unknown feedback status")
         if profile_url not in {p["profile_url"] for p in self.dataset(event_id)["people"]}:
             raise ReviewError("Unknown attendee")

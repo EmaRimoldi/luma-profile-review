@@ -17,4 +17,5 @@ jobs:
         with:
           node-version: "22"
       - run: node --check src/luma_review/static/app.js
+      - run: node --test tests/search.test.cjs
       - run: python run.py demo --workspace data/ci-demo

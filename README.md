@@ -10,6 +10,10 @@ the optional MCP integration uses the official Python SDK.
 
 ![A fictional personalized event guide](docs/images/guide.jpg)
 
+The discovery redesign adds a card stack, Save / Meet / Not relevant, undo,
+local indexed search, sequential five-question setup, and model connections.
+See [design and implementation decisions](docs/redesign.md).
+
 ## The experience
 
 1. **Write your brief.** Five short questions cover your work, interests,
@@ -25,8 +29,8 @@ the optional MCP integration uses the official Python SDK.
    from links that have merely been discovered.
 4. **Prepare your conversations.** Source-grounded professional facts feed
    a personalized guide: reasons to meet, information to verify, useful
-   conversation starters, and source citations. Save people, record that
-   you've met, or mark a suggestion irrelevant.
+   conversation starters, and source citations. Save people, make a private plan to meet, record that you have met, or
+   mark a suggestion irrelevant. Each decision advances the stack and can be undone.
 5. **Explore shared context.** A graph connects people to documented
    interests, organizations, and projects. Shared company or topic never
    automatically becomes a claim that two people know one another.
@@ -37,13 +41,23 @@ Luma scraper. If your agent has no browser, import a collected profile snapshot.
 
 ## Start locally
 
+With [uv](https://docs.astral.sh/uv/), one command runs the current review branch
+in an isolated environment (no manual virtualenv or Node installation):
+
+```sh
+uvx --python 3.13 --from 'luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide' luma-review serve --workspace ~/.luma-profile-review
+```
+
+Or from a checkout:
+
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[mcp]"
 .venv/bin/luma-review serve --workspace data/my-workspace
 ```
 
-Open the printed loopback URL and answer the five questions. The app and
+Open the printed loopback URL, sign in on Luma in your agent’s browser, and
+answer the five questions. Choose your model connection during setup. The app and
 agent integration share this workspace. Model requests use the selected
 backend; no remote application account or hosted database is needed.
 
@@ -106,9 +120,12 @@ driver or transfer your authenticated browser cookies to a model subprocess.
 | `codex` | Official `codex exec` with saved CLI login, structured output, and a read-only sandbox |
 | `claude` | Official Claude Code CLI with saved login and structured output |
 | `ollama` | JSON-schema chat with an explicitly selected installed local model |
+| `openai` / `anthropic` | Explicit, separately billed API mode with a model ID and your API key |
 
 The official CLIs manage their own authentication and normal account limits.
 The tool does not extract OAuth tokens or silently fall back to paid APIs.
+API keys entered in Connections stay only in server memory until restart.
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` also work for CLI and MCP API mode.
 Existing environment credentials can affect which account a CLI uses. Run
 `luma-review doctor` to check availability. See [backend details](docs/backends.md).
 
@@ -122,7 +139,9 @@ The initial guide uses source-grounded, per-criterion evaluation with
 editable required conditions and weighted preferences. This is a replaceable
 starting point, not a claim that this algorithm is optimal.
 
-A literal keyword baseline is implemented for comparison. The graph explains
+A literal keyword baseline is implemented for comparison. A local BM25 index
+powers name, company, and topic search without model calls; it does not replace
+the evidence-based default matching order. The graph explains
 professional context; popularity is not used as a relevance score. Embedding
 retrieval, pairwise reranking, and reciprocal matching are considered in
 [the product and matching decision](docs/product.md), with promotion gates
@@ -153,8 +172,9 @@ luma-review guide --workspace data/my-workspace --event EVENT_ID --out data/my-g
 ```
 
 Swap `codex` for `claude`, or select `ollama --model YOUR_INSTALLED_MODEL`.
-The exported HTML is self-contained and read-only: search, filters, evidence,
-and the graph work without a running server. Avoid sharing real event guides
+The exported HTML contains its code and data and is read-only: search, filters,
+evidence, and the graph work without a running server. Remote profile photos
+and outbound source pages need a network connection. Avoid sharing real event guides
 unless you intend to share their profile excerpts and professional brief.
 
 For current-agent inference without MCP, use `tasks --stage structure`,
@@ -176,6 +196,8 @@ See [data formats](docs/data-format.md) for the snapshot and model contracts.
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
 node --check src/luma_review/static/app.js
+node --test tests/search.test.cjs
+node scripts/benchmark-search.cjs
 ```
 
 Tests cover onboarding, source queues, evidence validation, stale inputs,

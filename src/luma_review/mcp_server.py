@@ -35,9 +35,9 @@ def create_server(root: Path):
         return workspace.create_event(event_url, event_name)
 
     @server.tool(annotations=local_write)
-    def record_attendees(event_id: str, attendees: list[dict[str, str]], displayed_count: int | None = None,
+    def record_attendees(event_id: str, attendees: list[dict[str, Any]], displayed_count: int | None = None,
                          complete: bool = False, scope: str = "Accessible Luma guest list collected by the user's agent.") -> dict[str, Any]:
-        """Record batches of names and profile_url values observed in the guest list. Set complete only after exhausting the accessible list."""
+        """Record observed names and profile_url values. Optional photo_url and contact_links (email, linkedin, x) must come from the person's published profile, never guesses. Set complete only after exhausting the accessible list."""
         return workspace.capture_attendees(event_id, attendees, displayed_count, complete, scope)
 
     @server.tool(annotations=readonly)
@@ -65,9 +65,9 @@ def create_server(root: Path):
     @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
     def run_event_analysis(event_id: str, backend: str = "codex", model: str | None = None,
                            base_url: str = "http://127.0.0.1:11434") -> dict[str, Any]:
-        """Run structure and matching through the explicitly selected Codex/Claude CLI or Ollama backend. For your current agent model, use inference_tasks and submit_inference instead."""
-        if backend not in {"codex", "claude", "ollama"}:
-            raise ReviewError("Choose codex, claude, or ollama; host inference uses inference_tasks")
+        """Run structure and matching with the selected CLI, Ollama, or separately billed API backend (environment key). For your current agent model, use inference_tasks and submit_inference instead."""
+        if backend not in {"codex", "claude", "ollama", "openai", "anthropic"}:
+            raise ReviewError("Choose codex, claude, ollama, openai, or anthropic; host inference uses inference_tasks")
         provider = make_backend(backend, model, base_url=base_url, work_dir=workspace.root / "work/model-runs")
         guide = workspace.analyze(event_id, provider)
         return {"event_id": event_id, "counts": guide["counts"], "errors": guide["errors"]}
@@ -83,7 +83,7 @@ def create_server(root: Path):
 
     @server.tool(annotations=local_write)
     def record_feedback(event_id: str, profile_url: str, status: str, note: str = "") -> dict[str, Any]:
-        """Save local feedback: saved, met, not_relevant, or none. No message is sent to the attendee."""
+        """Save local feedback: saved, meet (plan), met (already met), not_relevant, or none. No message is sent to the attendee."""
         return workspace.save_feedback(event_id, profile_url, status, note)
 
     return server

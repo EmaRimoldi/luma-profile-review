@@ -41,3 +41,33 @@ that every client or its browser integration has been manually exercised.
 Unit tests and fictional fixtures do not establish recommendation quality or
 that external websites will keep the same interface. Multi-event collection,
 enrichment and multi-user relevance pilots remain required before broader claims.
+
+## October 21 discovery redesign
+
+- 63 Python tests and 5 Node search tests pass. Additional contracts cover
+  durable Meet intent, presentation-only updates without re-analysis, key
+  non-persistence/non-disclosure, fixed API endpoints, redirects, sanitized
+  failures, incomplete responses, and guide cache invalidation after external
+  workspace writes.
+- Fresh browser setup traversed Luma handoff, all five questions, and the model
+  connection step; incomplete setup resumes after reload. The official Codex
+  CLI login check returned Ready without making a model request.
+- Browser checks on fictional data cover Save, Meet, Not relevant, immediate
+  advancement, undo, reload persistence, saved collections, source disclosures,
+  a right-drag swipe, and the scrolling view. Responsive preview at 390 × 844
+  checked navigation and reachable decision buttons. Real touch hardware remains
+  untested.
+- Real pilot search for `neuro` found two documented matches; Next navigated
+  between them. All 30 reviewed Luma pages supplied observed portraits on
+  October 21. Their 30 existing assessments and the user's brief/feedback were
+  preserved; these portrait records remain in ignored private files.
+- `uvx --from . luma-review --version`, the local Git-style package requirement
+  with the MCP extra, and wheel building succeeded. The built wheel includes
+  `search.js` and the new server modules. No npm/PyPI release was published.
+- The OpenAI / Anthropic API adapters were checked against their official
+  structured-output contracts with mocked HTTP. Live paid API calls were not
+  made; prior subscription/Ollama validation limits still apply.
+- Reproducible synthetic index microbenchmark: roughly 0.3 / 1.8 ms p95 search
+  at 1,000 / 10,000 profiles, excluding DOM, network, and model work. Relevance
+  improvement remains unmeasured; the default personalized assessment order
+  was not replaced with a lexical score.

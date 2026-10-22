@@ -129,3 +129,17 @@ Unknown/conflicting preference weights become uncertain points, not confirmed
 negative evidence. Coverage is the count of yes/no outcomes divided by the
 number of criteria. Reports are ordered by status, confirmed preference points,
 then name. It is a relevance ranking, not an estimate of a person's worth.
+
+## Card presentation metadata
+
+Each attendee may carry an observed `photo_url` (HTTP(S)) and a `contact_links`
+object with `email` (plain published address), `linkedin`, and/or `x` (HTTP(S)
+profile URLs on their respective services). `record_attendees` accepts these
+optional fields; repeat a known identity to update presentation metadata.
+Only save values actually observed on the person's published profile. Missing
+fields produce initials / unavailable contact icons. Discovered LinkedIn and X
+outbound links are also displayed without claiming that the page was read.
+Photos and contact fields are excluded from model prompts and inference hashes.
+
+Feedback statuses: `saved`, `meet` (a private plan), `met` (already met),
+`not_relevant`, and `none` (return to discovery / undo). No action sends a message.

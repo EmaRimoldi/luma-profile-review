@@ -2,6 +2,7 @@
 import json
 
 from .core import ReviewError, text
+from .contact import model_profile
 
 FACT_KINDS = ["role", "organization", "interest", "skill", "project", "seeking", "offers"]
 
@@ -37,7 +38,7 @@ Relationships require explicit source evidence, an exact known target profile UR
 in the source's recorded links or text. Same company, topic, or event NEVER establishes that people
 know each other. Empty facts and relationships are valid when nothing is established.
 Return only the requested JSON.\nINPUT DATA:\n"""
-    return instruction + json.dumps({"person": person, "user_interests": brief["interests"],
+    return instruction + json.dumps({"person": model_profile(person), "user_interests": brief["interests"],
                                       "known_people": [{"name": p["name"], "profile_url": p["profile_url"]} for p in roster if p["profile_url"] in referenced]}, ensure_ascii=False)
 
 
