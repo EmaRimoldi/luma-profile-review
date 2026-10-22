@@ -33,6 +33,8 @@ event=cli('import','--profiles',str(root/'examples/profiles.json'))['event_id']
 command=['analyze','--event',event,'--backend',args.backend,'--timeout','120']
 if args.model:command+=['--model',args.model]
 if args.batch_size is not None:command+=['--batch-size',str(args.batch_size)]
+usage_path=args.workspace/'work/usage.jsonl'
+previous_usage=usage_path.read_text().splitlines() if usage_path.exists() else []
 started=time.monotonic()
 result=cli(*command)
 elapsed=time.monotonic()-started
@@ -47,10 +49,10 @@ quality={'positive_inference_match':verdict('https://luma.com/user/demo-builder'
 export=args.workspace/'guide.html'
 cli('guide','--event',event,'--out',str(export))
 assert '<!doctype html>' in export.read_text().lower()
-usage_path=args.workspace/'work/usage.jsonl'
-usage=usage_path.read_text().splitlines() if usage_path.exists() else []
+all_usage=usage_path.read_text().splitlines() if usage_path.exists() else []
+usage=all_usage[len(previous_usage):]
 if not result['errors']:cli(*command)
-assert (usage_path.read_text().splitlines() if usage_path.exists() else [])==usage,'Repeat run should use validated cache'
+assert (usage_path.read_text().splitlines() if usage_path.exists() else [])==all_usage,'Repeat run should use validated cache'
 print(json.dumps({'backend':args.backend,'model':args.model,'seconds':round(elapsed,3),
                   'counts':result['counts'],'errors':result['errors'],'quality_checks':quality,
                   'model_requests':len(usage),'repeat_model_requests':0 if not result['errors'] else None,
