@@ -75,7 +75,7 @@ class Application:
             with self.job_lock:
                 if self.job.get("running"):
                     raise ReviewError("A guide is already being prepared.")
-                self.job = {"running": True, "stage": "Connecting your agent", "current": 0, "total": data.get("limit", 10)}
+                self.job = {"running": True, "kind": "agent", "stage": "Connecting your agent", "current": 0, "total": data.get("limit", 10)}
             try:
                 return self.agent_runner().action(action, data.get("event_id"), data.get("limit", 10))
             except Exception:
