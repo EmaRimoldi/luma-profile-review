@@ -2,7 +2,7 @@
 
 ## Purpose and audience
 
-Help a person attending San Francisco professional events identify a small
+Help a person attending professional events on Luma identify a small
 number of useful conversations. The primary user is an individual attending
 an event, not an organizer assigning meetings between every pair of guests.
 The unit of value is a relevant conversation with a clear reason to begin it.
@@ -11,6 +11,22 @@ The product begins with the user's work, interests, desired outcomes, hoped-for
 connections, and possible contribution. It should find complementary experience
 as well as similar interests. It must distinguish professional fit from a
 claim that someone is available or interested in the proposed interaction.
+
+## Geographic scope
+
+City is event context, not a built-in eligibility rule. Onboarding assigns no
+default city or region. A geographic preference is considered only when the user
+includes it in their answers or editable criteria; only explicit must-haves are
+hard requirements. Existing workspaces drop the former automatic region tag when
+read, preserving profile IDs, cached assessments, source evidence, and decisions.
+Explicit location criteria and custom region metadata are preserved.
+
+The demo uses a fictional event without an assumed city. Synthetic workflow checks
+cover events labeled Berlin, Singapore, and São Paulo; they do not establish live
+collection success or recommendation usefulness in those cities. Access controls,
+available sources, and Luma interface changes still affect collection. The current
+collector recognizes English and Italian guest-list labels; comprehensive
+localization and multilingual relevance evaluation remain outside verified scope.
 
 ## Core loop shipped in 0.2
 

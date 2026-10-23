@@ -39,8 +39,8 @@ def load_demo(workspace):
                     "title": "Fictional professional bio", "retrieved_at": "2026-10-19T12:00:00-07:00", "text": excerpt}]
         people.append({"name": name + " (demo)", "profile_url": f"https://luma.com/user/demo-{slug}",
                        "sources": sources, "outbound_links": [], "collection_complete": True})
-    dataset = {"version": 1, "demo": True, "event": {"name": "SF AI Builders — fictional demo",
-               "url": "https://luma.com/demo-sf-builders", "displayed_guest_count": len(people),
+    dataset = {"version": 1, "demo": True, "event": {"name": "AI Builders — fictional demo",
+               "url": "https://luma.com/demo-ai-builders", "displayed_guest_count": len(people),
                "collection_scope": "Six fictional profiles. Demo assessments are curated fixtures, not live model outputs.",
                "roster_complete": True}, "people": people}
     event_id = workspace.import_dataset(dataset)["event_id"]

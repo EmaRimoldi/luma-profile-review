@@ -55,6 +55,17 @@ class OnboardingTests(unittest.TestCase):
         brief = make_brief({**DEMO_ANSWERS, "interests": "inference, inference, robotics"})
         self.assertEqual(brief["interests"], ["inference", "robotics"])
 
+    def test_onboarding_does_not_assign_a_region(self):
+        brief = make_brief(DEMO_ANSWERS)
+        self.assertNotIn("region", brief)
+        self.assertNotIn("San Francisco", criteria_from_brief(brief))
+
+    def test_user_location_requirement_is_preserved(self):
+        requirement = "Currently works in São Paulo"
+        brief = make_brief({**DEMO_ANSWERS, "must_haves": [requirement]})
+        rules = parse_criteria(criteria_from_brief(brief)).rules
+        self.assertEqual([r.condition for r in rules if r.kind == "must"], [requirement])
+
 
 class CollectionTests(ProductBase):
     def test_roster_capture_is_resumable_and_preserves_sources(self):
@@ -141,6 +152,38 @@ class StructureAndGraphTests(ProductBase):
 
 
 class GuideTests(ProductBase):
+    def test_legacy_region_cleanup_preserves_cached_work_and_explicit_criteria(self):
+        brief_path = self.workspace.root / "brief.json"
+        brief = self.workspace.brief()
+        brief_path.write_text(json.dumps({**brief, "region": "San Francisco Bay Area"}))
+        original_criteria = self.guide["criteria_markdown"] + "\nLocation context explicitly supplied by the user: San Francisco.\n"
+        # Keep the existing cache key: the old automatic tag never affected inference.
+        reopened = Workspace(self.workspace.root)
+        self.assertNotIn("region", reopened.brief())
+        self.assertEqual(reopened.brief()["id"], brief["id"])
+        self.assertEqual(reopened.guide(self.event_id)["counts"], self.guide["counts"])
+        reopened.save_criteria(original_criteria)
+        self.assertEqual(reopened.criteria().markdown, original_criteria)
+        brief_path.write_text(json.dumps({**brief, "region": "Berlin"}))
+        self.assertEqual(reopened.brief()["region"], "Berlin")
+
+    def test_event_location_does_not_change_deterministic_matching(self):
+        for city, slug in [("Berlin", "berlin"), ("Singapore", "singapore"), ("São Paulo", "sao-paulo")]:
+            with self.subTest(city=city):
+                dataset = copy.deepcopy(self.workspace.dataset(self.event_id))
+                dataset["event"].update(name=f"Builders in {city}", url=f"https://luma.com/test-{slug}")
+                event_id = self.workspace.import_dataset(dataset)["event_id"]
+                for stage in ["structure", "matching"]:
+                    tasks = self.workspace.tasks(event_id, stage)
+                    responses = {p["profile_url"]: p["professional"] if stage == "structure" else {
+                        "summary": p["summary"], "assessments": p["assessments"]} for p in self.guide["people"]}
+                    self.workspace.submit(event_id, stage, tasks["request_hash"], responses)
+                guide = self.workspace.guide(event_id)
+                self.assertEqual(guide["event"]["name"], f"Builders in {city}")
+                self.assertEqual(guide["counts"], self.guide["counts"])
+                self.assertEqual({p["profile_url"]: p["score"] for p in guide["people"]},
+                                 {p["profile_url"]: p["score"] for p in self.guide["people"]})
+
     def test_demo_is_explicit_and_unknown_profiles_remain_unknown(self):
         self.assertTrue(self.guide["demo"])
         morgan = next(p for p in self.guide["people"] if "Morgan" in p["name"])

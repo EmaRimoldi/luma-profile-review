@@ -5,11 +5,13 @@
   const QUESTIONS=[
     {id:'work',label:'What are you working on?',hint:'Your role, project, or company in one sentence.'},
     {id:'interests',label:'What catches your curiosity?',hint:'A few professional topics you could talk about for hours.'},
-    {id:'looking_for',label:'What would make the evening worthwhile?',hint:'A collaborator, feedback, customers, or a fresh perspective.'},
+    {id:'looking_for',label:'What would make this event worthwhile?',hint:'A collaborator, feedback, customers, or a fresh perspective.'},
     {id:'connect_with',label:'Who would you love to meet?',hint:'The roles, experience, or backgrounds that matter to you.'},
     {id:'can_offer',label:'What can you bring to the conversation?',hint:'Experience, useful feedback, an introduction, or something to build together.'}
   ];
   const clone=value=>JSON.parse(JSON.stringify(value));
+  // Older onboarding added this unused tag without asking the user. Keep IDs and reviewed work.
+  const cleanLegacyBrief=brief=>{if(brief?.region==='San Francisco Bay Area'){const {region,...rest}=brief;return rest;}return brief;};
   function url(value,luma=false){const parsed=new URL(value);if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password)throw new Error('Use a valid HTTP(S) link.');if(luma&&!['luma.com','lu.ma','www.luma.com'].includes(parsed.hostname))throw new Error('Use a Luma event link.');if(luma){parsed.hostname='luma.com';parsed.protocol='https:';parsed.search='';parsed.hash='';}return parsed.href.replace(/\/$/,'');}
   function criteria(brief){
     const cell=v=>String(v).replace(/\|/g,'\\|').replace(/[\r\n]+/g,' ');
@@ -17,16 +19,16 @@
     brief.must_haves.forEach((v,i)=>rows.push(`| M${i+1} | must | 0 | ${cell(v)} | Explicit professional evidence; missing information is unknown |`));
     const preferences=[['P1',4,'Professional work or interests relevant to: '+brief.interests.join(', ')],['P2',5,'Background relevant to: '+brief.connect_with],['P3',5,'Experience that could contribute to: '+brief.looking_for],['P4',2,'Professional context where my contribution may be useful: '+brief.can_offer]];
     for(const [id,weight,condition] of preferences)rows.push(`| ${id} | prefer | ${weight} | ${cell(condition)} | A specific role, project, or declared professional activity; no inferred willingness |`);
-    rows.push('','## Rules','','Use English for summaries and reasons. Preserve source quotes verbatim. Missing evidence means unknown, not no. Shared context does not establish a personal relationship.');return rows.join('\n')+'\n';
+    rows.push('','## Rules','','Apply a geographic preference only when I explicitly state one in my answers or criteria.','Use English for summaries and reasons. Preserve source quotes verbatim. Missing evidence means unknown, not no. Shared context does not establish a personal relationship.');return rows.join('\n')+'\n';
   }
   function makeBrief(value){
-    const brief={version:1,region:'San Francisco Bay Area',id:'browser-profile'};
+    const brief={version:1,id:'browser-profile'};
     for(const q of QUESTIONS){let answer=value[q.id];if(q.id==='interests'){answer=Array.isArray(answer)?answer:String(answer||'').split(',');brief.interests=[...new Set(answer.map(s=>String(s).trim()).filter(Boolean))];if(!brief.interests.length||brief.interests.length>20)throw new Error('Add between one and twenty interests.');}else{if(typeof answer!=='string'||!answer.trim()||answer.length>3000)throw new Error('Add a short answer to each question.');brief[q.id]=answer.trim();}}
     brief.must_haves=Array.isArray(value.must_haves)?value.must_haves:String(value.must_haves||'').split('\n').map(s=>s.trim()).filter(Boolean);if(brief.must_haves.length>20||brief.must_haves.some(v=>typeof v!=='string'||!v.trim()||v.length>3000))throw new Error('Keep must-have criteria below twenty.');return brief;
   }
   function validateGuide(value){
     if(!value||!Array.isArray(value.people)||!value.event||!value.brief||!value.graph||!Array.isArray(value.graph.nodes)||!Array.isArray(value.graph.edges)||typeof value.criteria_markdown!=='string')throw new Error('Choose a reviewed guide JSON, exported by your agent or the local app.');
-    const guide=clone(value);guide.event.url=url(guide.event.url,true);makeBrief(guide.brief);
+    const guide=clone(value);guide.event.url=url(guide.event.url,true);makeBrief(guide.brief);guide.brief=cleanLegacyBrief(guide.brief);
     if(!guide.event_id||!guide.people.length||guide.people.length>10000)throw new Error('The guide needs an event ID and reviewed profiles.');
     const seen=new Set(),statuses=['Preference match','Meets required criteria','Needs verification','No preferences matched','Outside criteria'];
     for(const p of guide.people){
@@ -46,6 +48,7 @@
   }
   function create(storage,fetcher){
     let current;try{current=JSON.parse(storage.getItem(KEY)||'null');}catch{}current=current||{brief:null,events:[],guides:{},settings:{backend:'agent',model:'',luma:'browser',setup_complete:true}};
+    current.brief=cleanLegacyBrief(current.brief);for(const guide of Object.values(current.guides))guide.brief=cleanLegacyBrief(guide.brief);
     function save(next){storage.setItem(KEY,JSON.stringify(next));current=next;}
     async function request(path,data){
       const next=clone(current),parsed=new URL(path,'https://people.example'),route=parsed.pathname;
@@ -53,7 +56,7 @@
         if(route==='/api/state')return clone({brief:current.brief,events:current.events,settings:current.settings,questions:QUESTIONS,job:{},criteria_markdown:current.criteria_markdown||'',connections:{}});
         if(route==='/api/guide'||route==='/api/export'){const id=parsed.searchParams.get('event');if(!current.guides[id])throw new Error('Add an event first.');const g=clone(current.guides[id]);if(g.analysis_stale){g.brief=current.brief;g.criteria_markdown=current.criteria_markdown;g.people=[];g.counts.reviewed=0;g.counts.recommended=0;g.graph={nodes:[],edges:[],shared_contexts:[]};}return g;}
         if(route==='/api/integration'){
-          const agent=parsed.searchParams.get('agent'),args=['--python','3.13','--from','luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide','luma-review','mcp'];
+          const agent=parsed.searchParams.get('agent'),args=['--python','3.13','--from','luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@main','luma-review','mcp'];
           const server={command:'uvx',args};let config=agent==='copilot'?{servers:{people_for_luma:{type:'stdio',...server}}}:agent==='opencode'?{mcp:{people_for_luma:{type:'local',command:['uvx',...args],enabled:true}}}:{mcpServers:{people_for_luma:server}};
           return {location:'Your agent’s MCP settings · requires uv',configuration:agent==='codex'?'[mcp_servers.people_for_luma]\ncommand = "uvx"\nargs = '+JSON.stringify(args):JSON.stringify(config,null,2)};
         }

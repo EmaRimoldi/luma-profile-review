@@ -16,7 +16,7 @@ from .core import (PROMPT_VERSION, ReviewError, aggregate, fingerprint, make_pro
 from .graph import build_graph
 from .contact import model_profile, presentation, validate_presentation
 from .matching import evidence_ranking, keyword_ranking
-from .onboarding import QUESTIONS, criteria_from_brief, make_brief
+from .onboarding import QUESTIONS, clean_legacy_brief, criteria_from_brief, make_brief
 from .pipeline import write_json
 from .professional import referenced_urls, structure_prompt, structure_schema, validate_structure
 from .presentation import present_brief, present_criteria, present_guide
@@ -68,7 +68,7 @@ class Workspace:
         return path
 
     def brief(self):
-        return self.read(self.root / "brief.json")
+        return clean_legacy_brief(self.read(self.root / "brief.json"))
 
     def criteria(self):
         path = self.root / "criteria.md"

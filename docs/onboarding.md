@@ -26,6 +26,8 @@ Use `--port 8766` if 8765 is occupied; website handoff requires 8765.
 2. **Answer the five questions.** Describe your work, interests, goal, ideal
    connections, and contribution. Only explicit must-haves become hard filters.
    Review or edit the resulting Markdown through **Edit preferences**.
+   There is no default city. If location matters, mention it in your answers or
+   add it as an explicit must-have (for example, “Currently works in Berlin”).
 3. **Choose your backend in Connections.**
 
    | Connection | Setup |
@@ -46,6 +48,19 @@ Use `--port 8766` if 8765 is occupied; website handoff requires 8765.
 The Codex catalog and a configured API key are not proof of model entitlement.
 A successful request confirms access. Claude CLI authentication, billing, and
 organization policies remain controlled by Claude. See [backends](backends.md).
+
+## Events outside your home city
+
+Use the same profile and workflow for a Luma event in another city, or update
+your goals for that event. The application does not restrict events by city.
+Older automatic region tags are ignored without discarding completed research;
+location requirements you wrote yourself stay in your criteria.
+
+The app and generated summaries use English, with original source quotes kept
+verbatim. The collector recognizes English and Italian guest-list labels. If a
+different Luma interface language prevents collection, try Luma in English and
+retry. Successful access and recommendation quality still need validation on your
+event; global availability is not a promise of complete guest lists or profiles.
 
 ## Recover without starting over
 

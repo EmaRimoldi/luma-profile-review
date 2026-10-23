@@ -4,7 +4,7 @@
 
 ### Arrive prepared. Know who to meet.
 
-Turn a crowded San Francisco event into a personal guide to your next good conversation.
+Turn a crowded Luma event into a personal guide to your next good conversation.
 
 [Explore the demo](https://people-for-luma.poggiolabmit.chatgpt.site) · [Get started](#your-first-guide) · [Setup help](docs/onboarding.md) · [Contribute](#build-with-us)
 
@@ -20,6 +20,21 @@ Turn a crowded San Francisco event into a personal guide to your next good conve
 **Your interests → your criteria → your people.** Connect Luma and your agent;
 your agent researches accessible professional profiles and explains whom to meet.
 Research, progress, and results stay in the app.
+
+<details>
+<summary><strong>Events, locations & languages</strong></summary>
+
+Designed for Luma events in any city, with recommendations based on your own
+profile and criteria. Add a location requirement only if it matters to you.
+Guest-list access, registration, and readable professional sources still determine
+what can be researched. This alpha has not been validated at events everywhere.
+
+The interface and generated summaries are in English; source quotes stay in their
+original language. Automatic guest-list collection currently recognizes English
+and Italian labels; other Luma interface languages and multilingual recommendation
+quality need further validation.
+
+</details>
 
 ## Your first guide
 
@@ -74,7 +89,7 @@ choose your backend, then **Find my people**.
 | --- | --- |
 | **What are you working on?** | “I'm building an open-source inference tool.” |
 | **What catches your curiosity?** | “GPU infrastructure, LLM serving, open source.” |
-| **What would make the evening worthwhile?** | “Practical feedback and a potential collaborator.” |
+| **What would make this event worthwhile?** | “Practical feedback and a potential collaborator.” |
 | **Who would you love to meet?** | “Engineers running inference systems in production.” |
 | **What can you bring to the conversation?** | “Benchmarking experience and thoughtful technical feedback.” |
 

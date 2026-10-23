@@ -4,16 +4,27 @@ from .core import ReviewError, fingerprint, text
 QUESTIONS = [
     {"id": "work", "label": "What are you working on?", "hint": "Your role, project, or company in a sentence."},
     {"id": "interests", "label": "What catches your curiosity?", "hint": "A few professional topics you could talk about for hours."},
-    {"id": "looking_for", "label": "What would make the evening worthwhile?", "hint": "A collaborator, feedback, customers, or a fresh perspective."},
+    {"id": "looking_for", "label": "What would make this event worthwhile?", "hint": "A collaborator, feedback, customers, or a fresh perspective."},
     {"id": "connect_with", "label": "Who would you love to meet?", "hint": "The roles, experience, or backgrounds that matter to you."},
     {"id": "can_offer", "label": "What can you bring to the conversation?", "hint": "Your experience, a useful introduction, feedback, or a collaboration."},
 ]
 
 
+def clean_legacy_brief(brief):
+    """Drop the old automatic region tag, preserving IDs and valid cached work.
+
+    The tag was never used by scoring or inference. Explicit geographic criteria
+    and any custom region metadata are retained.
+    """
+    if isinstance(brief, dict) and brief.get("region") == "San Francisco Bay Area":
+        return {key: value for key, value in brief.items() if key != "region"}
+    return brief
+
+
 def make_brief(answers: dict) -> dict:
     if not isinstance(answers, dict):
         raise ReviewError("Onboarding answers must be an object")
-    brief = {"version": 1, "region": "San Francisco Bay Area"}
+    brief = {"version": 1}
     for question in QUESTIONS:
         key = question["id"]
         value = answers.get(key)
@@ -62,6 +73,7 @@ def criteria_from_brief(brief: dict) -> str:
     for ident, weight, condition, evidence in preferences:
         lines.append(f"| {ident} | prefer | {weight} | {cell(condition)} | {evidence} |")
     lines += ["", "## Rules", "", "These are editable preferences derived from my own answers. Only explicit must_haves are hard requirements.",
+              "Apply a geographic preference only when I explicitly state one in my answers or criteria.",
               "Missing evidence means unknown, not no. Potential professional relevance is not proof of willingness to meet, buy, invest, or collaborate.",
               "Distinguish current and past work. Base decisions on source excerpts, not a person's popularity or event attendance."]
     return "\n".join(lines) + "\n"

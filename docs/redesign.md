@@ -69,10 +69,10 @@ made for this redesign. Official CLIs continue to manage subscription access.
 | Desktop wrapper | Could package browser access later, with a larger distribution and maintenance surface |
 
 [uvx](https://docs.astral.sh/uv/guides/tools/) provides isolated tool execution
-and supports Git sources. While this branch is under review:
+and supports Git sources. Launch the current version from `main`:
 
 ```sh
-uvx --python 3.13 --from 'luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@feature/personal-event-guide' luma-review serve --workspace ~/.luma-profile-review
+uvx --python 3.13 --from 'luma-profile-review[mcp] @ git+https://github.com/EmaRimoldi/luma-profile-review.git@main' luma-review serve --workspace ~/.luma-profile-review
 ```
 
 This requires uv; the first run may fetch Python and build the package.
